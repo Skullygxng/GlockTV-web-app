@@ -20,13 +20,15 @@ npm run dev
 ## Configuration
 
 Everything prefixed `VITE_` is compiled into the browser bundle and is public.
-For the GitHub Pages deployment (`.github/workflows/deploy-pages.yml`), the
-repository needs:
+The GitHub Pages deployment (`.github/workflows/deploy-pages.yml`) needs no
+repository configuration: the deploy workflow embeds browser-safe defaults for
+the Supabase URL and publishable key and for the TMDB key (which is public in
+practice — it ships in the site's JavaScript for every visitor).
+
+Optional overrides, when you want them:
 
 - secret `TMDB_API_KEY`
-- variables `SUPABASE_URL` and `SUPABASE_PUBLISHABLE_KEY` (browser-safe values)
+- variables `SUPABASE_URL` and `SUPABASE_PUBLISHABLE_KEY`
 
-For local development, copy the same values into a `.env.local` file. Optional
-overrides (branding, base path, embed providers, ads) mirror the main
-repository's `.env.example`; sensible GlockTV defaults apply when they are
-unset.
+These override the embedded defaults when set. Optional branding, base path,
+embed-provider and ads overrides mirror the main repository's `.env.example`.
