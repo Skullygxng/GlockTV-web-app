@@ -1,7 +1,7 @@
 import { FormEvent, lazy, Suspense, type TouchEvent, type WheelEvent, useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import {
-  Bell, Bookmark, ChevronDown, ChevronRight, ChevronUp, CircleUser, Clapperboard,
+  Bookmark, ChevronDown, ChevronRight, ChevronUp, CircleUser, Clapperboard,
   Compass, Film, Filter, History, LoaderCircle, Play, RotateCw, Search,
   SlidersHorizontal, Sparkles, Star, Users, X, Zap,
 } from 'lucide-react';
@@ -10,6 +10,9 @@ import { SearchSuggestions, optionId } from './components/SearchSuggestions';
 import { useMediaSearchSuggestions } from './hooks/useMediaSearchSuggestions';
 import { useDialogBehavior } from './hooks/useDialogBehavior';
 import { AccountPanel } from './components/AccountPanel';
+import { AdminDashboard } from './components/AdminDashboard';
+import { PremiumBanner } from './components/PremiumBanner';
+import { useLoadSiteSettings, useSiteSettings } from './lib/siteSettings';
 import { SupportPanel } from './components/SupportPanel';
 import { AddToHomeScreen } from './components/AddToHomeScreen';
 import { AccountProvider, useAccount } from './components/AccountProvider';
@@ -98,24 +101,25 @@ function loadSession() {
 
 /*
  * The brand mark: the deployment's own artwork, resolved against the base path
- * so a sub-path host such as GitHub Pages finds it. The tile around it is CSS,
- * so this one file also backs the tab icon and the home-screen icon.
+ * so a sub-path host such as GitHub Pages finds it. An owner can point it at
+ * their own https image from the admin dashboard; blank keeps the bundled mark.
  */
-function BrandMark() {
-  return <img src={`${site.basePath}brand/logo-mark.png`} alt="" />;
+function BrandMark({ logoUrl }: { logoUrl?: string }) {
+  return <img src={logoUrl || `${site.basePath}brand/logo-mark.png`} alt="" />;
 }
 
 /*
  * The header lockup: the artwork in a rounded tile, beside the wordmark in the
- * display face - the condensed type of every heading, so the top bar reads as
- * part of the same design as the hero and the cards rather than sitting beside
- * them. Phones have no top bar at all: the mark lives in the tab icon there.
+ * display face. Both come from the deployment's settings, so renaming or
+ * recolouring the site in the admin dashboard changes the header live.
  */
 function Logo() {
+  const settings = useSiteSettings();
+  const name = settings.name || site.name;
   return (
-    <div className="logo" aria-label={site.name}>
-      <span className="logo__mark" aria-hidden="true"><BrandMark /></span>
-      <b>{site.wordmark}</b>
+    <div className="logo" aria-label={name}>
+      <span className="logo__mark" aria-hidden="true"><BrandMark logoUrl={settings.logoUrl} /></span>
+      <b>{name.toUpperCase()}</b>
     </div>
   );
 }
@@ -206,6 +210,11 @@ function AppShell({ client, partyService, playbackConfig, partyPlaybackConfig, b
   /* Opened from the account panel, which closes as it opens - two stacked
      right-hand sheets would trap focus between them. */
   const [supportOpen, setSupportOpen] = useState(false);
+  /* The owner's dashboard: opened from the account panel, which closes first. */
+  const [adminOpen, setAdminOpen] = useState(false);
+
+  /* The deployment's own branding, once: name, colours, logo and ad network. */
+  useLoadSiteSettings();
   /*
    * My List has two things in it that are both "yours": what you saved, and
    * what you are partway through. They share a destination rather than taking
@@ -394,6 +403,20 @@ const wheelLockedUntil = useRef(0);
     likedGenreIds: session.likedGenreIds,
     skippedGenreIds: session.skippedGenreIds,
   }) : 0;
+
+  /*
+   * What actually put this title in the feed, in the viewer's own terms. The
+   * panel used to claim "Popular with viewers who like ..." whether or not
+   * anyone had liked anything, which is a claim this app cannot make.
+   */
+  const filterGenreNames = filters.genreIds
+    .map((id) => genres.find(([genreId]) => genreId === id)?.[1])
+    .filter((name): name is string => Boolean(name));
+  const whyReason = filterGenreNames.length
+    ? `You filtered for ${filterGenreNames.slice(0, 2).join(' + ')}`
+    : session.likedGenreIds.length
+      ? 'You liked titles like this'
+      : `Popular on ${site.name} right now`;
 
   const previewTrailerKey = current && previewContext
     && previewContext.details.id === current.id
@@ -751,7 +774,6 @@ const wheelLockedUntil = useRef(0);
           )}
         </form>
 
-        <button className="topbar__icon" aria-label="Notifications"><Bell size={18} /></button>
         <AccountButton onOpen={() => setAccountOpen(true)} />
       </header>
 
@@ -1059,24 +1081,28 @@ const wheelLockedUntil = useRef(0);
       </main>
 
       <aside className={`context-panel ${view === 'friends' ? 'context-panel--hidden' : ''}`}>
-        <section>
-          <p>Why this?</p>
-          <strong>
-            {session.likedGenreIds.length
-              ? 'Your session leans toward'
-              : 'Popular with viewers who like'}
-          </strong>
-          <h3>{current?.genres.slice(0, 2).join(' + ') || 'bold storytelling'}</h3>
-        </section>
+        {/* Nothing to explain when nothing is on screen: an empty feed has its
+            own state panel, and an invented reason would contradict it. */}
+        {current && (
+          <section>
+            <p>Why this?</p>
+            <strong>{whyReason}</strong>
+            {!!current.genres.length && (
+              <h3>{current.genres.slice(0, 2).join(' + ')}</h3>
+            )}
+          </section>
+        )}
 
-        <section>
-          <p>Top genres</p>
-          <div className="chips">
-            {(current?.genres ?? ['Crime', 'Thriller', 'Drama']).slice(0, 3).map((genre) => (
-              <span key={genre}>{genre}</span>
-            ))}
-          </div>
-        </section>
+        {current && current.genres.length > 0 && (
+          <section>
+            <p>Top genres</p>
+            <div className="chips">
+              {current.genres.slice(0, 3).map((genre) => (
+                <span key={genre}>{genre}</span>
+              ))}
+            </div>
+          </section>
+        )}
 
         <section className="similar">
           <p>Similar vibes</p>
@@ -1194,6 +1220,7 @@ const wheelLockedUntil = useRef(0);
         <AccountPanel
           onClose={() => setAccountOpen(false)}
           onOpenSupport={() => { setAccountOpen(false); setSupportOpen(true); }}
+          onOpenAdmin={() => { setAccountOpen(false); setAdminOpen(true); }}
           billing={billingService}
         />
       )}
@@ -1205,10 +1232,21 @@ const wheelLockedUntil = useRef(0);
         />
       )}
 
+      {adminOpen && (
+        <AdminDashboard onClose={() => setAdminOpen(false)} />
+      )}
+
+      {/* The free plan is ad-supported and the paid one is not; a visitor should
+          be able to see that without opening the account panel. */}
+      <PremiumBanner onOpenAccount={() => setAccountOpen(true)} />
+
       <AddToHomeScreen />
 
       <footer className="credits">
-        Movie and TV data supplied by TMDB. This product uses the TMDB API but is not endorsed or certified by TMDB. Watch availability powered by JustWatch.
+        Movie and TV data supplied by TMDB. This product uses the TMDB API but is not
+        endorsed or certified by TMDB. Watch availability powered by JustWatch. Live TV
+        channels are indexed by IPTV-org. Fight cards and live sport come from TheSportsDB
+        and StreamFree.
       </footer>
     </div>
   );

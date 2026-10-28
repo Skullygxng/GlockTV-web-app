@@ -1,14 +1,18 @@
-import { type FormEvent, useState } from 'react';
-import { CreditCard, LifeBuoy, LoaderCircle, LogOut, Mail, ShieldCheck, Sparkles, X } from 'lucide-react';
+import { type FormEvent, useEffect, useState } from 'react';
+import { CreditCard, LifeBuoy, LoaderCircle, LogIn, LogOut, Mail, Palette, ShieldCheck, Sparkles, UserPlus, X } from 'lucide-react';
 import { useAccount } from './AccountProvider';
 import { useDialogBehavior } from '../hooks/useDialogBehavior';
 import { createDefaultBillingService, type BillingService } from '../lib/billing';
+import { createDefaultSupportStaffService, type SupportStaffService } from '../lib/supportStaff';
 import { site } from '../config/site';
 
 /*
  * The GlockTV account surface. It reads the global account layer and offers
  * the two identity actions; it has no way to change a tier, because nothing in
  * the browser does.
+ *
+ * The admin dashboard is one button further in, and only appears when the
+ * database says this account is staff - the panel asks, it does not decide.
  */
 let defaultBilling: BillingService | null | undefined;
 function getDefaultBilling(): BillingService | null {
@@ -16,25 +20,46 @@ function getDefaultBilling(): BillingService | null {
   return defaultBilling;
 }
 
+let defaultStaffService: SupportStaffService | null | undefined;
+function getDefaultStaffService(): SupportStaffService | null {
+  if (defaultStaffService === undefined) defaultStaffService = createDefaultSupportStaffService();
+  return defaultStaffService;
+}
+
 export function AccountPanel({
   onClose,
   onOpenSupport,
+  onOpenAdmin,
   billing: providedBilling,
+  staffService: providedStaffService,
 }: {
   onClose: () => void;
   /* Support is part of the account surface rather than a sixth destination. */
   onOpenSupport?: () => void;
+  /* The owner's dashboard, offered only to staff. */
+  onOpenAdmin?: () => void;
   /* Omit for the app's own billing client; pass null to run with no backend. */
   billing?: BillingService | null;
+  /* Omit for the app's own check; pass null to run with no backend. */
+  staffService?: SupportStaffService | null;
 }) {
   const {
     account, entitlements, loading, error,
     confirmingMembership, confirmationTimedOut,
     linkEmail, sendSignInLink, canSignOut, signOut,
+    canUsePassword, signIn, signUp, sendPasswordReset,
   } = useAccount();
   const billing = providedBilling === undefined ? getDefaultBilling() : providedBilling;
+  const staffService = providedStaffService === undefined ? getDefaultStaffService() : providedStaffService;
 
   const [email, setEmail] = useState(account?.email ?? '');
+  const [password, setPassword] = useState('');
+  /*
+   * A guest meets one identity action at a time: create an account, or sign
+   * in. Both use the same two fields, so the mode only decides which button
+   * the form offers.
+   */
+  const [mode, setMode] = useState<'create' | 'signin'>('create');
   const [status, setStatus] = useState('');
   const [actionError, setActionError] = useState('');
   const [busy, setBusy] = useState(false);
@@ -42,8 +67,16 @@ export function AccountPanel({
      restartable by a second click while the first is still going. */
   const [billingBusy, setBillingBusy] = useState(false);
   const [billingError, setBillingError] = useState('');
+  const [isStaff, setIsStaff] = useState(false);
 
   const dialog = useDialogBehavior<HTMLElement>({ onClose });
+
+  useEffect(() => {
+    if (!staffService) { setIsStaff(false); return; }
+    let active = true;
+    void staffService.isStaff().then((value) => { if (active) setIsStaff(value); });
+    return () => { active = false; };
+  }, [staffService]);
 
   const isGuest = !account || account.isAnonymous;
   const isPremium = entitlements.tier === 'premium';
@@ -53,7 +86,8 @@ export function AccountPanel({
     setBusy(true); setStatus(''); setActionError('');
     try {
       await action();
-      setStatus(done);
+      /* An action may have set its own message; '' leaves it standing. */
+      if (done) setStatus(done);
     } catch (reason) {
       setActionError(reason instanceof Error ? reason.message : 'That did not work. Try again.');
     } finally {
@@ -61,9 +95,28 @@ export function AccountPanel({
     }
   };
 
-  const protectAccount = (event: FormEvent) => {
-    event.preventDefault();
+  const protectAccount = () => {
     void run(() => linkEmail(email), 'Check your email to finish protecting this account.');
+  };
+
+  /*
+   * Password sign-up and sign-in share one form: the same two fields, and one
+   * button whose label says which of the two is about to happen. A returning
+   * member arriving in a fresh browser is a guest here, so a panel that only
+   * ever offered "Create account" had no way back in.
+   */
+  const applyPassword = () => {
+    if (!canUsePassword) return;
+    if (mode === 'signin') {
+      void run(() => signIn(email, password), 'Signed in.');
+      return;
+    }
+    void run(async () => {
+      const result = await signUp(email, password);
+      setStatus(result === 'confirm_email'
+        ? 'Check your email to confirm the account, then sign in.'
+        : 'Account created. You are signed in.');
+    }, '');
   };
 
   /*
@@ -182,11 +235,18 @@ export function AccountPanel({
           {billingError && <small className="account-panel__error" role="alert">{billingError}</small>}
         </section>
 
-        <form onSubmit={protectAccount}>
+        <form
+          onSubmit={(event: FormEvent<HTMLFormElement>) => {
+            event.preventDefault();
+            /* Enter follows whichever identity action the form presents. */
+            if (isGuest && canUsePassword) applyPassword();
+            else protectAccount();
+          }}
+        >
           <p>
             {isGuest
-              ? 'Add an email to keep this identity across devices. Your rooms, hosting and history stay with you.'
-              : 'Need to sign in somewhere else? Send yourself a link.'}
+              ? 'Create an account or sign in with your email and password. Your rooms, hosting and history follow you across devices.'
+              : 'Need to sign in somewhere else? Send yourself a link, or switch account with your password.'}
           </p>
           <label>
             Account email
@@ -198,9 +258,73 @@ export function AccountPanel({
               placeholder="you@example.com"
             />
           </label>
+          {canUsePassword && (
+            <>
+              <label>
+                Password
+                <input
+                  type="password"
+                  aria-label="Account password"
+                  value={password}
+                  minLength={8}
+                  autoComplete={isGuest && mode === 'create' ? 'new-password' : 'current-password'}
+                  onChange={(event) => { setPassword(event.target.value); setStatus(''); setActionError(''); }}
+                  placeholder="At least 8 characters"
+                />
+              </label>
+              <div className="account-panel__actions">
+                {isGuest ? (
+                  <button
+                    type="button"
+                    disabled={busy || !email.trim() || password.length < 8}
+                    onClick={applyPassword}
+                  >
+                    {mode === 'create' ? <><UserPlus /> Create account</> : <><LogIn /> Sign in</>}
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    disabled={busy || !email.trim() || password.length < 8}
+                    onClick={() => void run(() => signIn(email, password), 'Signed in.')}
+                  >
+                    <LogIn /> Sign in
+                  </button>
+                )}
+                {(!isGuest || mode === 'signin') && (
+                  <button
+                    type="button"
+                    disabled={busy || !email.trim()}
+                    onClick={() => void run(
+                      () => sendPasswordReset(email),
+                      'Password reset link sent. Open it on this device.',
+                    )}
+                  >
+                    Forgot password?
+                  </button>
+                )}
+              </div>
+              {isGuest && (
+                <button
+                  type="button"
+                  className="account-panel__switch"
+                  onClick={() => {
+                    setMode(mode === 'create' ? 'signin' : 'create');
+                    setStatus('');
+                    setActionError('');
+                  }}
+                >
+                  {mode === 'create'
+                    ? 'Already have an account? Sign in'
+                    : 'New here? Create an account'}
+                </button>
+              )}
+            </>
+          )}
           <div className="account-panel__actions">
             {isGuest && (
-              <button type="submit" disabled={busy || !email.trim()}>
+              /* Attaches the email to the anonymous account this browser is
+                 already using, so its rooms and history come along. */
+              <button type="button" disabled={busy || !email.trim()} onClick={protectAccount}>
                 <ShieldCheck /> Protect guest account
               </button>
             )}
@@ -232,11 +356,18 @@ export function AccountPanel({
           {actionError && <small className="account-panel__error" role="alert">{actionError}</small>}
         </form>
 
-        {onOpenSupport && (
+        {(onOpenSupport || (onOpenAdmin && isStaff)) && (
           <div className="account-panel__actions">
-            <button type="button" onClick={onOpenSupport}>
-              <LifeBuoy /> Contact support
-            </button>
+            {onOpenAdmin && isStaff && (
+              <button type="button" onClick={onOpenAdmin}>
+                <Palette /> Admin dashboard
+              </button>
+            )}
+            {onOpenSupport && (
+              <button type="button" onClick={onOpenSupport}>
+                <LifeBuoy /> Contact support
+              </button>
+            )}
           </div>
         )}
       </section>

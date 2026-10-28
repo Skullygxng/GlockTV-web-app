@@ -26,6 +26,38 @@ interface FriendsExperienceProps {
 
 const upsertMessage = (messages: PartyMessage[], message: PartyMessage) => messages.some((item) => item.id === message.id) ? messages : [...messages, message];
 
+/*
+ * Copies text and reports whether it actually landed. navigator.clipboard is
+ * absent on insecure origins and refuses inside some in-app browsers, and the
+ * old optional call resolved anyway - so the button said "Copied" whether or
+ * not anything had been copied.
+ */
+async function copyText(text: string): Promise<boolean> {
+  try {
+    if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
+      await navigator.clipboard.writeText(text);
+      return true;
+    }
+  } catch {
+    /* Fall through to the selection path below. */
+  }
+
+  try {
+    const area = document.createElement('textarea');
+    area.value = text;
+    area.setAttribute('readonly', '');
+    area.style.position = 'fixed';
+    area.style.opacity = '0';
+    document.body.appendChild(area);
+    area.select();
+    const copied = document.execCommand('copy');
+    document.body.removeChild(area);
+    return copied;
+  } catch {
+    return false;
+  }
+}
+
 interface RecentRoom {
   code: string;
   titleName: string;
@@ -654,7 +686,12 @@ export function FriendsExperience({ client, service, selectedTitle, initialRoomC
 
   const copyInvite = async () => {
     if (!room) return;
-    await navigator.clipboard?.writeText(inviteUrl(room.code)); setCopied(true); window.setTimeout(() => setCopied(false), 1400);
+    const copiedOk = await copyText(inviteUrl(room.code));
+    if (!copiedOk) {
+      setError('Could not copy the invite link. Use Share invite or copy the room code instead.');
+      return;
+    }
+    setCopied(true); window.setTimeout(() => setCopied(false), 1400);
   };
 
   const shareInvite = async () => {
@@ -668,7 +705,12 @@ export function FriendsExperience({ client, service, selectedTitle, initialRoomC
     } catch {
       // Fall through to clipboard when share is cancelled or unavailable.
     }
-    await navigator.clipboard?.writeText(url); setCopied(true); window.setTimeout(() => setCopied(false), 1400);
+    const copiedOk = await copyText(url);
+    if (!copiedOk) {
+      setError('Could not copy the invite link. Use Share invite or copy the room code instead.');
+      return;
+    }
+    setCopied(true); window.setTimeout(() => setCopied(false), 1400);
   };
 
   const voteLoungeTitle = async (item: MediaItem) => {

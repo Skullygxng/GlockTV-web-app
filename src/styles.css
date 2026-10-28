@@ -49,6 +49,8 @@ html{scrollbar-width:none}html::-webkit-scrollbar{display:none}
 .account-panel__actions button svg{width:14px}
 .account-panel form small{color:#817a89;font-size:10px}
 .account-panel__error{color:#e78ba0!important}
+.account-panel__switch{justify-self:start;padding:0;border:0;background:none;color:#b98fd0;font-size:10px;text-decoration:underline;cursor:pointer}
+.media-card__votes{margin-left:6px;color:#938fa0;font-size:11px;font-weight:500;letter-spacing:.01em}
 .topbar__account{width:30px;height:30px;padding:0;border:2px solid var(--purple);border-radius:50%;background:transparent;color:#fff;display:grid;place-items:center;font-size:12px;font-weight:700}
 @media (max-width:700px){.account-panel{max-height:88svh}}
 .account-premium{margin:0 0 18px;padding:14px;border:1px solid #4d3160;border-radius:12px;background:linear-gradient(135deg,rgba(123,31,195,.13),transparent 58%),#0d0b10;display:grid;gap:11px}
@@ -100,3 +102,32 @@ html{scrollbar-width:none}html::-webkit-scrollbar{display:none}
 .install-prompt>div>button svg{width:14px;height:14px}
 .install-prompt__go{min-height:42px;border:0;border-radius:10px;background:linear-gradient(100deg,#7013ed,#931fff);color:#fff;font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.04em}
 @media(min-width:701px){.install-prompt{left:auto;right:24px;bottom:24px;width:340px}}
+
+
+/* The owner's dashboard: the support panel's shell, wider, with the settings
+   form a buyer actually uses. */
+.admin-panel{width:min(560px,100%);max-height:min(760px,92svh);overflow:auto}
+.admin-form{display:grid;gap:14px}
+.admin-form fieldset{border:1px solid #2b2632;border-radius:12px;padding:14px;display:grid;gap:11px;margin:0}
+.admin-form legend{display:flex;align-items:center;gap:7px;padding:0 6px;color:#cbb6ff;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.08em}
+.admin-form legend svg{width:14px;height:14px}
+.admin-form label{display:grid;gap:6px;color:#8f8998;font-size:10px;text-transform:uppercase;letter-spacing:.06em}
+.admin-form input,.admin-form select{min-height:40px;padding:0 11px;border:1px solid #2e2935;border-radius:9px;background:#111116;color:#fff;font-size:12px}
+.admin-form input[type=color]{height:40px;padding:3px}
+.admin-colours{display:grid;grid-template-columns:1fr 1fr;gap:11px}
+.admin-save{min-height:44px;border:0;border-radius:10px;background:linear-gradient(100deg,#7013ed,#931fff);color:#fff;font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;display:flex;align-items:center;justify-content:center;gap:8px}
+.admin-team{margin-top:18px;display:grid;gap:10px}
+.admin-team h3{margin:0;display:flex;align-items:center;gap:7px;font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:#cbb6ff}
+.admin-team h3 svg{width:14px;height:14px}
+.admin-team ul{list-style:none;margin:0;padding:0;display:grid;gap:6px}
+.admin-team li{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px 11px;border:1px solid #262130;border-radius:9px;background:#0e0d12}
+.admin-team li span{display:grid;gap:3px}
+.admin-team li strong{font-size:12px}
+.admin-team li small{font-size:9px;color:#8f8998;text-transform:uppercase;letter-spacing:.06em}
+.admin-team li button{width:30px;height:30px;padding:0;border:1px solid #342d39;border-radius:8px;background:#151218;color:#c9a6ff;display:grid;place-items:center}
+.admin-team li button svg{width:14px;height:14px}
+.admin-team__add{display:grid;grid-template-columns:1fr 130px auto;gap:9px;align-items:end}
+.admin-team__add label{display:grid;gap:6px;color:#8f8998;font-size:10px;text-transform:uppercase;letter-spacing:.06em}
+.admin-team__add input,.admin-team__add select{min-height:38px;padding:0 10px;border:1px solid #2e2935;border-radius:9px;background:#111116;color:#fff;font-size:12px}
+.admin-team__add button{min-height:38px;padding:0 14px;border:0;border-radius:9px;background:#7c19e3;color:#fff;font-size:11px;font-weight:800;display:flex;align-items:center;gap:7px}
+@media(max-width:520px){.admin-colours{grid-template-columns:1fr}.admin-team__add{grid-template-columns:1fr}}

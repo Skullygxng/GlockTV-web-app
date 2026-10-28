@@ -35,6 +35,11 @@ export interface AccountState {
   confirmMembership: () => Promise<void>;
   linkEmail: (email: string) => Promise<void>;
   sendSignInLink: (email: string) => Promise<void>;
+  /* Email + password, offered only when the deployment supports it. */
+  canUsePassword: boolean;
+  signIn: (email: string, password: string) => Promise<void>;
+  signUp: (email: string, password: string) => Promise<'signed_in' | 'confirm_email'>;
+  sendPasswordReset: (email: string) => Promise<void>;
   /* Ending the session is offered only when the service supports it. */
   canSignOut: boolean;
   signOut: () => Promise<void>;
@@ -186,6 +191,27 @@ export function AccountProvider({
     await service.sendSignInLink(email);
   }, [service]);
 
+  const canUsePassword = typeof service?.signInWithPassword === 'function'
+    && typeof service.signUpWithPassword === 'function';
+
+  const signIn = useCallback(async (email: string, password: string) => {
+    if (!service?.signInWithPassword) throw new Error('Password sign-in is unavailable right now.');
+    await service.signInWithPassword(email, password);
+    await load();
+  }, [service, load]);
+
+  const signUp = useCallback(async (email: string, password: string) => {
+    if (!service?.signUpWithPassword) throw new Error('Account creation is unavailable right now.');
+    const result = await service.signUpWithPassword(email, password);
+    await load();
+    return result;
+  }, [service, load]);
+
+  const sendPasswordReset = useCallback(async (email: string) => {
+    if (!service?.sendPasswordReset) throw new Error('Password reset is unavailable right now.');
+    await service.sendPasswordReset(email);
+  }, [service]);
+
   /* A service without a session model (test stubs) never offers this. */
   const canSignOut = typeof service?.signOut === 'function';
 
@@ -207,12 +233,17 @@ export function AccountProvider({
     confirmMembership,
     linkEmail,
     sendSignInLink,
+    canUsePassword,
+    signIn,
+    signUp,
+    sendPasswordReset,
     canSignOut,
     signOut,
   }), [
     account, entitlements, loading, error, ready,
     confirmingMembership, confirmationTimedOut,
     load, confirmMembership, linkEmail, sendSignInLink,
+    canUsePassword, signIn, signUp, sendPasswordReset,
     canSignOut, signOut,
   ]);
 
@@ -234,6 +265,10 @@ export function useAccount(): AccountState {
     confirmMembership: async () => {},
     linkEmail: async () => { throw new Error('Accounts are unavailable right now.'); },
     sendSignInLink: async () => { throw new Error('Accounts are unavailable right now.'); },
+    canUsePassword: false,
+    signIn: async () => { throw new Error('Accounts are unavailable right now.'); },
+    signUp: async () => { throw new Error('Accounts are unavailable right now.'); },
+    sendPasswordReset: async () => { throw new Error('Accounts are unavailable right now.'); },
     canSignOut: false,
     signOut: async () => { throw new Error('Accounts are unavailable right now.'); },
   };

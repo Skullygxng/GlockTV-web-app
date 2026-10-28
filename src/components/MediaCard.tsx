@@ -9,6 +9,7 @@ import {
   Volume2,
   VolumeX,
 } from 'lucide-react';
+import { useBodyClass } from '../hooks/useBodyClass';
 import { imageUrl, type MediaItem } from '../lib/media';
 import { formatProgressPosition, progressPercent, type ProgressEntry } from '../lib/watchProgress';
 import {
@@ -61,8 +62,13 @@ export interface MediaCardProps {
   trailerPlayerFactory?: PartyPlayerFactory;
 }
 
+/*
+ * Blank when the provider has no runtime. A card simply carries one fact fewer
+ * than announcing that one is missing, which only ever meant the catalog has
+ * not filled it in.
+ */
 function formatRuntime(minutes: number | null): string {
-  if (!minutes) return 'Runtime TBD';
+  if (!minutes) return '';
 
   const hours = Math.floor(minutes / 60);
   const remaining = minutes % 60;
@@ -70,6 +76,13 @@ function formatRuntime(minutes: number | null): string {
   return hours
     ? `${hours}h ${remaining}m`
     : `${remaining}m`;
+}
+
+/* TMDB's vote count, said out loud: an audience total, never a like count. */
+function formatVoteCount(total: number): string {
+  if (total >= 1_000_000) return `${(total / 1_000_000).toFixed(1)}M`;
+  if (total >= 1_000) return `${Math.round(total / 1_000)}K`;
+  return String(total);
 }
 
 export function MediaCard({
@@ -92,6 +105,15 @@ export function MediaCard({
     'w780',
   );
 
+  /*
+   * Live TV opens over the feed but is mounted beside the app, not inside it,
+   * so it marks itself open with a body class. While that is set this card
+   * stands its trailer down rather than playing audio under another player.
+   */
+  const liveTvOpen = useBodyClass('live-tv-open');
+  const activeTrailerKey = liveTvOpen ? null : trailerKey;
+  const runtime = formatRuntime(item.runtime);
+
   const previewMount = useRef<HTMLDivElement>(null);
   const previewPlayer = useRef<PartyPlayer | null>(null);
 
@@ -107,7 +129,7 @@ export function MediaCard({
     setPreviewReady(false);
     setPreviewMuted(!loadPreviewSoundPreference());
 
-    if (!trailerKey) return;
+    if (!activeTrailerKey) return;
 
     let disposed = false;
     let player: PartyPlayer | null = null;
@@ -121,7 +143,7 @@ export function MediaCard({
 
       player = trailerPlayerFactory(
         mount,
-        trailerKey,
+        activeTrailerKey,
         (readyPlayer) => {
           if (disposed) {
             readyPlayer.destroy();
@@ -163,7 +185,7 @@ export function MediaCard({
         previewPlayer.current = null;
       }
     };
-  }, [trailerKey, trailerPlayerFactory]);
+  }, [activeTrailerKey, trailerPlayerFactory]);
 
   const togglePreviewSound = () => {
     const player = previewPlayer.current;
@@ -200,7 +222,7 @@ export function MediaCard({
           <div className="media-card__fallback" />
         )}
 
-        {trailerKey ? (
+        {activeTrailerKey ? (
           <div
             className="media-card__video"
             aria-hidden="true"
@@ -218,7 +240,7 @@ export function MediaCard({
           className="media-card__mute"
           type="button"
           aria-label={
-            !trailerKey
+            !activeTrailerKey
               ? 'Trailer preview unavailable'
               : !previewReady
                 ? 'Trailer sound loading'
@@ -226,7 +248,7 @@ export function MediaCard({
                   ? `Play ${item.title} trailer with sound`
                   : `Mute ${item.title} trailer`
           }
-          disabled={!trailerKey || !previewReady}
+          disabled={!activeTrailerKey || !previewReady}
           onClick={togglePreviewSound}
         >
           {previewMuted
@@ -246,11 +268,13 @@ export function MediaCard({
             <Heart />
           </button>
 
-          <span>
-            {item.voteCount > 999
-              ? `${Math.round(item.voteCount / 1000)}K`
-              : item.voteCount}
-          </span>
+          {/*
+            * A label, not a number. This sat under the heart as a bare figure
+            * and read as a like count, but it is TMDB's vote total and does not
+            * move when somebody likes the title - so it belongs with the rating
+            * instead, where a vote count means what it says.
+            */}
+          <span>Like</span>
 
           <button
             type="button"
@@ -304,13 +328,20 @@ export function MediaCard({
                   : 'TV'
               )}
           </span>
-          <i />
-          <span>{formatRuntime(item.runtime)}</span>
+          {runtime && (
+            <>
+              <i />
+              <span>{runtime}</span>
+            </>
+          )}
         </p>
 
         <p className="media-card__rating">
           <strong>★ {item.rating.toFixed(1)}</strong>
           <span>/10</span>
+          {item.voteCount > 0 && (
+            <small className="media-card__votes">{formatVoteCount(item.voteCount)} votes</small>
+          )}
         </p>
 
         <p className="media-card__overview">
