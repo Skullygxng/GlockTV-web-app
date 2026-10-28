@@ -1,5 +1,6 @@
 import { useEffect, useMemo } from 'react';
 import { useAccount } from './AccountProvider';
+import { adConfigFromSiteSettings, useSiteSettings } from '../lib/siteSettings';
 import {
   AD_PLACEMENTS,
   adFrameDocument,
@@ -42,7 +43,20 @@ export interface AdSlotProps {
 
 export function AdSlot({ placement, config: providedConfig }: AdSlotProps) {
   const { entitlements, ready } = useAccount();
-  const config = providedConfig === undefined ? defaultConfig() : providedConfig;
+
+  /*
+   * What the owner saved in the admin dashboard wins over the build-time
+   * variables, matching every other setting on that screen. Memoised because
+   * the frame document is built from it: a fresh object on each render would
+   * rebuild the document and count a new impression every time.
+   */
+  const settings = useSiteSettings();
+  const config = useMemo(
+    () => (providedConfig !== undefined
+      ? providedConfig
+      : adConfigFromSiteSettings(settings) ?? defaultConfig()),
+    [providedConfig, settings],
+  );
 
   const render = shouldRenderAds({ entitlements, ready, config });
 

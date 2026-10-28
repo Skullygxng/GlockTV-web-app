@@ -156,7 +156,7 @@ export function AdminDashboard({ onClose }: { onClose: () => void }) {
                     value={settings.name}
                     maxLength={60}
                     onChange={(event) => update({ name: event.target.value })}
-                    placeholder="GlockTV"
+                    placeholder={site.name}
                   />
                 </label>
 

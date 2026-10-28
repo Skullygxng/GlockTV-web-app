@@ -1,5 +1,11 @@
 import { useEffect, useState } from 'react';
-import { AD_PLACEMENTS, type AdPlacementId } from './ads';
+import {
+  AD_PLACEMENTS,
+  isAllowedAdScriptUrl,
+  isAllowedZoneId,
+  type AdConfig,
+  type AdPlacementId,
+} from './ads';
 import { site } from '../config/site';
 import { getSupabaseClient } from './supabaseClient';
 
@@ -101,7 +107,29 @@ export function validateSiteSettings(next: SiteSettings): string {
   if (!HEX.test(next.accentColor) || !HEX.test(next.accentColor2)) return 'Colours must be six-digit hex, like #7b16ff.';
   if (next.logoUrl && !HTTPS.test(next.logoUrl)) return 'The logo URL must start with https://.';
   if (next.ads.scriptUrl && !HTTPS.test(next.ads.scriptUrl)) return 'The ad script URL must start with https://.';
+  for (const id of PLACEMENT_IDS) {
+    const zone = next.ads.zones[id];
+    if (zone && !ZONE.test(zone)) return 'Zone ids are letters, digits, dashes and underscores only.';
+  }
   return '';
+}
+
+/*
+ * The ad configuration an owner saved in the dashboard, or null when there is
+ * none. Exactly the same rules as the build-time path applies: https only,
+ * validated zone ids, and an unconfigured result that renders nothing at all.
+ */
+export function adConfigFromSiteSettings(settings: SiteSettings): AdConfig | null {
+  const scriptUrl = settings.ads.scriptUrl.trim();
+  if (!scriptUrl || !isAllowedAdScriptUrl(scriptUrl)) return null;
+
+  const zones: Partial<Record<AdPlacementId, string>> = {};
+  for (const id of PLACEMENT_IDS) {
+    const zone = settings.ads.zones[id]?.trim();
+    if (zone && isAllowedZoneId(zone)) zones[id] = zone;
+  }
+
+  return { provider: 'hilltopads', scriptUrl, zones, frequency: settings.ads.maxPerSession };
 }
 
 /* --- one live value, so the header and the dashboard agree ----------------- */
