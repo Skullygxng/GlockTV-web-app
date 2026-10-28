@@ -24,11 +24,14 @@ const refs = [...html.matchAll(/\s(?:src|href)="([^"]+)"/g)].map((match) => matc
 const local = refs.filter((ref) => !/^(?:[a-z]+:)?\/\//i.test(ref));
 if (!local.some((ref) => /\/assets\/.+\.js$/.test(ref))) problems.push('no bundled script referenced');
 for (const ref of local) {
-  if (!ref.startsWith(base)) {
+  /* A document-relative URL ("manifest.webmanifest") resolves against the page,
+     which is served from the base; only root-relative ones are already absolute. */
+  const resolved = ref.startsWith('/') ? ref : `${base}${ref}`;
+  if (!resolved.startsWith(base)) {
     problems.push(`${ref} is outside the base path ${base}`);
     continue;
   }
-  const file = path.join('dist', ref.slice(base.length));
+  const file = path.join('dist', resolved.slice(base.length));
   if (!existsSync(file)) problems.push(`${ref} is referenced but ${file} does not exist`);
 }
 if (base !== '/' && html.includes('"/assets/')) problems.push('root-relative /assets/ reference in a sub-path build');
