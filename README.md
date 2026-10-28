@@ -20,18 +20,18 @@ npm run dev
 ## Configuration
 
 Everything prefixed `VITE_` is compiled into the browser bundle and is public.
-The GitHub Pages deployment (`.github/workflows/deploy-pages.yml`) needs no
-repository configuration: the deploy workflow embeds browser-safe defaults for
-the Supabase URL and publishable key and for the TMDB key (which is public in
-practice — it ships in the site's JavaScript for every visitor).
+Nothing is embedded in this copy: the deploy workflow reads the browser-safe
+backend values and the TMDB key from this repository's own settings, so set
+them before the first deploy, in Settings → Secrets and variables → Actions:
 
-Optional overrides, when you want them:
+- secret `TMDB_API_KEY` — the catalog
+- variables `SUPABASE_URL` and `SUPABASE_PUBLISHABLE_KEY` — accounts, watch
+  rooms, watch progress and support
 
-- secret `TMDB_API_KEY`
-- variables `SUPABASE_URL` and `SUPABASE_PUBLISHABLE_KEY`
-
-These override the embedded defaults when set. Optional branding, base path,
-embed-provider and ads overrides mirror the main repository's `.env.example`.
+Until they are set the build still runs and publishes a site with no catalog and
+no backend. The base path and public URL come from GitHub Pages and need no
+configuration; optional embed-provider and ads overrides mirror the main
+repository's `.env.example`.
 
 **New owner of a fresh copy?** Run `npm run setup` (after `npm ci`) — the
 wizard asks for your brand, keys and owner email, writes `.env.local`, ties
@@ -49,8 +49,8 @@ all, never an empty box.
 | --- | --- | --- |
 | Ad network | `ADS_SCRIPT_URL` + one `ADS_ZONE_*` per slot | Script URL from your publisher dashboard (must be https); zone ids optional, one per placement. |
 | Ad frequency | `ADS_MAX_PER_SESSION` | How many ad frames one visit may load, across every slot. Blank = uncapped. |
-| Supabase backend | `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY` | Embedded defaults already point at the main instance. |
-| TMDB | secret `TMDB_API_KEY` | Embedded default already present. |
+| Supabase backend | `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY` | Required: point them at your own Supabase project. |
+| TMDB | secret `TMDB_API_KEY` | Required: your own TMDB API key. |
 | Playback embeds | `MOVIE_EMBED_URL_TEMPLATE`, `TV_EMBED_URL_TEMPLATE`, backups, party | See the deploy workflow; each new embed host is also allowlisted in `src/lib/ppvEmbedPolicy.ts`. |
 
 Rebranding is a checklist, not a code change: see [REBRAND.md](REBRAND.md).
@@ -65,10 +65,10 @@ there too.
   the repository settings; the workflow normalises the base path it gets from
   `actions/configure-pages`, so a renamed repository or a custom domain needs no
   edit there.
-- **Credentials.** The Supabase URL, publishable key and TMDB key are embedded as
-  build defaults in that workflow. All three are public by design — they ship in
-  the bundle — so rotating them means rotating at the provider and updating the
-  workflow, not hiding the old value.
+- **Credentials.** The Supabase URL, publishable key and TMDB key are set as this
+  repository's own secret and variables and injected at build time. All three
+  are public by design — they ship in the bundle — so rotating them means
+  rotating at the provider and updating the setting, not hiding the old value.
 - **Installing.** `index.html` declares an `apple-touch-icon` and a web app
   manifest generated at build time from `src/config/siteConfig.ts`, so a
   home-screen install carries the deployment's own name and icon. The in-app

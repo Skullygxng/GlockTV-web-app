@@ -1,18 +1,18 @@
-name: Deploy GlockTV web app to GitHub Pages
+name: Deploy the site to GitHub Pages
 
 # Publishes the dist/ build to GitHub Pages. Any static host can serve the same
-# `npm run build` output instead; this is the deployment target the site uses.
+# `npm run build` output instead; this is the deployment target the template
+# ships with.
 #
 # GitHub Pages serves a project site under /<repository>/, so this build takes
 # its base path and public URL from actions/configure-pages rather than from a
 # hard-coded path or domain. Pages cannot send custom response headers, so the
 # recommended security headers cannot be applied here.
 #
-# Build configuration: the browser-safe Supabase values and the TMDB key are
-# embedded in "Resolve build configuration" as defaults, so the site deploys
-# with no repository configuration. Everything VITE_ becomes public in the
-# bundle either way; secret TMDB_API_KEY and vars SUPABASE_URL and
-# SUPABASE_PUBLISHABLE_KEY override the embedded defaults when set.
+# Build configuration: nothing is embedded. The TMDB key, Supabase URL and
+# publishable key come from this repository's own secret and variables, named
+# in the setup wizard's checklist. Until they are set the build still runs and
+# publishes a site with no catalog and no backend.
 
 on:
   push:
@@ -85,10 +85,10 @@ jobs:
       - name: Build
         run: npm run build
         env:
-          # Where Pages will serve this build, normalised above. The fallbacks in
-          # "Resolve build configuration" match
-          # https://skullygxng.github.io/GlockTV-web-app/ — update them if the
-          # repository is renamed or moves to a custom domain.
+          # Where Pages will serve this build, normalised above. The fallbacks
+          # stand in until actions/configure-pages reports the real values, and
+          # carry the placeholders the setup wizard's checklist names: rename
+          # them if this copy keeps them.
           VITE_BASE_PATH: ${{ steps.site.outputs.base_path }}
           VITE_SITE_URL: ${{ steps.site.outputs.site_url }}
           # Ads are optional and blank by default: empty values mean an
