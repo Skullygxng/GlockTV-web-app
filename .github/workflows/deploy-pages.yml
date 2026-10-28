@@ -23,8 +23,6 @@ permissions:
   contents: read
   pages: write
   id-token: write
-  # Lets configure-pages enable Pages for the repository on the first deploy.
-  administration: write
 
 concurrency:
   group: pages
@@ -46,11 +44,14 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      # Reading the Pages metadata needs Pages to exist; it cannot be enabled
+      # from Actions (GITHUB_TOKEN has no administration scope). If Pages is
+      # not enabled yet this step is skipped over and the build falls back to
+      # the values a project site at this repository name will serve at.
       - name: Configure Pages
         id: pages
         uses: actions/configure-pages@v5
-        with:
-          enablement: true
+        continue-on-error: true
 
       - name: Resolve build configuration
         env:
@@ -76,10 +77,12 @@ jobs:
       - name: Build
         run: npm run build
         env:
-          # Where Pages will serve this build, e.g. /GlockTV-web-app/ and
-          # https://owner.github.io/GlockTV-web-app/ (or / for a custom domain).
-          VITE_BASE_PATH: ${{ steps.pages.outputs.base_path }}/
-          VITE_SITE_URL: ${{ steps.pages.outputs.base_url }}/
+          # Where Pages will serve this build. Real values come from
+          # configure-pages when Pages exists; the fallbacks match
+          # https://skullygxng.github.io/GlockTV-web-app/ — update them if the
+          # repository is renamed or moves to a custom domain.
+          VITE_BASE_PATH: ${{ steps.pages.outputs.base_path || 'GlockTV-web-app' }}/
+          VITE_SITE_URL: ${{ steps.pages.outputs.base_url || 'https://skullygxng.github.io/GlockTV-web-app' }}/
           VITE_MOVIE_EMBED_URL_TEMPLATE: 'https://www.vidcore.org/embed/movie/{tmdb_id}?autoPlay=true&theme=8B24ED&fullscreenButton=true&title=false'
           VITE_TV_EMBED_URL_TEMPLATE: 'https://www.vidcore.org/embed/tv/{tmdb_id}/{season_number}/{episode_number}?autoPlay=true&theme=8B24ED&fullscreenButton=true&title=false'
           VITE_BACKUP_MOVIE_EMBED_URL_TEMPLATE: 'https://vidzen.fun/movie/{tmdb_id}'
@@ -92,7 +95,7 @@ jobs:
           VITE_PARTY_BACKUP_TV_EMBED_URL_TEMPLATE: 'https://www.vidcore.org/embed/tv/{tmdb_id}/{season_number}/{episode_number}?autoPlay=true&theme=8B24ED&fullscreenButton=true&title=false'
 
       - name: Check build output
-        run: node scripts/check-build-output.mjs "${{ steps.pages.outputs.base_path }}/"
+        run: node scripts/check-build-output.mjs "${{ steps.pages.outputs.base_path || 'GlockTV-web-app' }}/"
 
       - name: Upload site artifact
         uses: actions/upload-pages-artifact@v4
