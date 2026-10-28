@@ -226,7 +226,7 @@ export function PpvPanel({
           </div>
         )}
         <div className="live-tv-disclaimer">
-          PPV listings come from TheSportsDB and Streamed.pk. Hosted player availability varies by
+          PPV listings come from TheSportsDB and StreamFree. Hosted player availability varies by
           event and can change without notice. Existing Live TV channels are unchanged.
         </div>
       </section>
