@@ -32,8 +32,9 @@ function siteManifest(site: SiteConfig): Plugin {
     background_color: '#050507',
     theme_color: '#050507',
     icons: [
-      { src: `${site.basePath}favicon.png`, sizes: '192x192', type: 'image/png' },
-      { src: `${site.basePath}apple-touch-icon.png`, sizes: '180x180', type: 'image/png' },
+      { src: `${site.basePath}favicon.png`, sizes: '192x192', type: 'image/png', purpose: 'any' },
+      { src: `${site.basePath}brand/logo-mark.png`, sizes: '512x512', type: 'image/png', purpose: 'any' },
+      { src: `${site.basePath}apple-touch-icon.png`, sizes: '180x180', type: 'image/png', purpose: 'any' },
     ],
   });
 
@@ -56,12 +57,60 @@ function siteManifest(site: SiteConfig): Plugin {
   };
 }
 
+/*
+ * The two files a crawler looks for at the site root. The sitemap is only
+ * written when the build knows its public address: a sitemap of relative or
+ * invented URLs is worse than none.
+ */
+function siteCrawlFiles(site: SiteConfig): Plugin {
+  const robots = ['User-agent: *', 'Allow: /', site.siteUrl ? `Sitemap: ${site.siteUrl}sitemap.xml` : '']
+    .filter(Boolean)
+    .join('\n') + '\n';
+
+  const sitemap = site.siteUrl
+    ? [
+        '<?xml version="1.0" encoding="UTF-8"?>',
+        '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">',
+        `  <url><loc>${site.siteUrl}</loc></url>`,
+        '</urlset>',
+        '',
+      ].join('\n')
+    : '';
+
+  const files: Array<[string, string]> = [['robots.txt', robots]];
+  if (sitemap) files.push(['sitemap.xml', sitemap]);
+
+  return {
+    name: 'instance-crawl-files',
+    generateBundle() {
+      for (const [fileName, source] of files) {
+        this.emitFile({ type: 'asset', fileName, source });
+      }
+    },
+    configureServer(server) {
+      server.middlewares.use((request, response, next) => {
+        const path = String((request as { url?: string }).url ?? '').split('?')[0];
+        const match = files.find(([fileName]) => path.endsWith(fileName));
+        if (!match) {
+          next();
+          return;
+        }
+        response.setHeader(
+          'Content-Type',
+          match[0].endsWith('.xml') ? 'application/xml; charset=utf-8' : 'text/plain; charset=utf-8',
+        );
+        response.end(match[1]);
+      });
+    },
+  };
+}
+
 export default defineConfig(({ mode }) => {
   /* loadEnv applies Vite's own precedence: process env over .env files. */
   const site = resolveSiteConfig(loadEnv(mode, '.', 'VITE_'));
   return {
     base: site.basePath,
-    plugins: [react(), siteHtml(site), siteManifest(site)],
+    plugins: [react(), siteHtml(site), siteManifest(site), siteCrawlFiles(site)],
     test: {
       environment: 'jsdom',
       globals: true,
