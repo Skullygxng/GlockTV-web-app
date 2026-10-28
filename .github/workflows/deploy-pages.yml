@@ -1,0 +1,87 @@
+name: Deploy GlockTV web app to GitHub Pages
+
+# Publishes the dist/ build to GitHub Pages. Any static host can serve the same
+# `npm run build` output instead; this is the deployment target the site uses.
+#
+# GitHub Pages serves a project site under /<repository>/, so this build takes
+# its base path and public URL from actions/configure-pages rather than from a
+# hard-coded path or domain. Pages cannot send custom response headers, so the
+# recommended security headers cannot be applied here.
+#
+# Required repository configuration (same values the main instance uses):
+#   secret  TMDB_API_KEY
+#   vars    SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Configure Pages
+        id: pages
+        uses: actions/configure-pages@v5
+
+      - name: Build
+        run: npm run build
+        env:
+          # Where Pages will serve this build, e.g. /GlockTV-web-app/ and
+          # https://owner.github.io/GlockTV-web-app/ (or / for a custom domain).
+          VITE_BASE_PATH: ${{ steps.pages.outputs.base_path }}/
+          VITE_SITE_URL: ${{ steps.pages.outputs.base_url }}/
+          VITE_TMDB_API_KEY: ${{ secrets.TMDB_API_KEY }}
+          VITE_SUPABASE_URL: ${{ vars.SUPABASE_URL }}
+          VITE_SUPABASE_PUBLISHABLE_KEY: ${{ vars.SUPABASE_PUBLISHABLE_KEY }}
+          VITE_MOVIE_EMBED_URL_TEMPLATE: 'https://www.vidcore.org/embed/movie/{tmdb_id}?autoPlay=true&theme=8B24ED&fullscreenButton=true&title=false'
+          VITE_TV_EMBED_URL_TEMPLATE: 'https://www.vidcore.org/embed/tv/{tmdb_id}/{season_number}/{episode_number}?autoPlay=true&theme=8B24ED&fullscreenButton=true&title=false'
+          VITE_BACKUP_MOVIE_EMBED_URL_TEMPLATE: 'https://vidzen.fun/movie/{tmdb_id}'
+          VITE_BACKUP_TV_EMBED_URL_TEMPLATE: 'https://vidzen.fun/tv/{tmdb_id}/{season_number}/{episode_number}'
+          VITE_CINESRC_MOVIE_EMBED_URL_TEMPLATE: 'https://cinesrc.st/embed/movie/{tmdb_id}?autoplay=true&color=%238b24ed&prioritize=true&continueprompt=false'
+          VITE_CINESRC_TV_EMBED_URL_TEMPLATE: 'https://cinesrc.st/embed/tv/{tmdb_id}?s={season_number}&e={episode_number}&autoplay=true&color=%238b24ed&prioritize=true&continueprompt=false'
+          VITE_PARTY_MOVIE_EMBED_URL_TEMPLATE: 'https://vidzen.fun/movie/{tmdb_id}'
+          VITE_PARTY_TV_EMBED_URL_TEMPLATE: 'https://vidzen.fun/tv/{tmdb_id}/{season_number}/{episode_number}'
+          VITE_PARTY_BACKUP_MOVIE_EMBED_URL_TEMPLATE: 'https://www.vidcore.org/embed/movie/{tmdb_id}?autoPlay=true&theme=8B24ED&fullscreenButton=true&title=false'
+          VITE_PARTY_BACKUP_TV_EMBED_URL_TEMPLATE: 'https://www.vidcore.org/embed/tv/{tmdb_id}/{season_number}/{episode_number}?autoPlay=true&theme=8B24ED&fullscreenButton=true&title=false'
+
+      - name: Check build output
+        run: node scripts/check-build-output.mjs "${{ steps.pages.outputs.base_path }}/"
+
+      - name: Upload site artifact
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: dist
+
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

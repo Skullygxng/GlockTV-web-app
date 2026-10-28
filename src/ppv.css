@@ -1,0 +1,213 @@
+.live-tv-tabs{
+  max-width:1500px;
+  margin:0 auto 16px;
+  display:flex;
+  gap:8px;
+}
+.live-tv-tabs button{
+  border:1px solid #2c2533;
+  background:#0c0b10;
+  color:#9d98a4;
+  border-radius:999px;
+  padding:8px 14px;
+  font-size:10px;
+  font-weight:700;
+  letter-spacing:.04em;
+  cursor:pointer;
+}
+.live-tv-tabs button.active{
+  border-color:#7e1ce4;
+  background:#7315da;
+  color:#fff;
+}
+.ppv-player__frame{
+  display:block;
+  width:100%;
+  height:100%;
+  border:0;
+  background:#000;
+}
+.ppv-player__actions{
+  margin-left:auto;
+  display:flex;
+  gap:8px;
+}
+.ppv-player__actions button{
+  border:1px solid #3a2f48;
+  background:#15131a;
+  color:#d7d0e0;
+  border-radius:8px;
+  padding:8px 10px;
+  display:flex;
+  align-items:center;
+  gap:6px;
+  font-size:8px;
+  cursor:pointer;
+}
+.ppv-player__actions button svg{width:13px}
+@media(max-width:900px){
+  .live-tv-tabs{margin:0 14px 10px;flex:0 0 auto}
+}
+.ppv-stale{
+  margin:0 0 8px;
+  padding:8px 10px;
+  border:1px solid #4a3a25;
+  border-radius:8px;
+  background:#191309;
+  color:#e4d3b5;
+  display:flex;
+  align-items:center;
+  gap:8px;
+  font-size:9px;
+}
+.ppv-stale svg{width:13px;flex:0 0 auto;color:#e0a33c}
+.ppv-stale span{min-width:0;flex:1 1 auto}
+.ppv-stale button{
+  flex:0 0 auto;
+  border:1px solid #6a532c;
+  border-radius:6px;
+  background:#241a0c;
+  color:#f3e3c6;
+  padding:5px 9px;
+  font-size:8px;
+  font-weight:700;
+  cursor:pointer;
+}
+
+/* Runtime diagnostics panel: only rendered with ?ppvdebug=1. */
+.ppv-diag{
+  border-top:1px solid #2b2334;
+  padding:10px 12px 12px;
+  background:#0b0a0e;
+  display:grid;
+  gap:10px;
+  font-size:9px;
+  color:#cfc7db;
+}
+.ppv-diag>header{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:8px;
+  flex-wrap:wrap;
+}
+.ppv-diag>header strong{color:#f2ebff;font-size:10px;letter-spacing:.04em}
+.ppv-diag>header button{
+  border:1px solid #4a3a5e;
+  border-radius:7px;
+  background:#1a1424;
+  color:#e6dcf5;
+  padding:6px 9px;
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+  font-size:8px;
+  font-weight:700;
+  cursor:pointer;
+}
+.ppv-diag>header button svg{width:12px}
+.ppv-diag__group{
+  border:1px solid #241d2e;
+  border-radius:8px;
+  padding:8px 9px;
+  background:#100e15;
+  min-width:0;
+}
+.ppv-diag__group h4{
+  margin:0 0 6px;
+  color:#b871ff;
+  font-size:8px;
+  letter-spacing:.12em;
+  text-transform:uppercase;
+}
+.ppv-diag__row{
+  display:flex;
+  align-items:baseline;
+  justify-content:space-between;
+  gap:10px;
+  padding:2px 0;
+  min-width:0;
+}
+.ppv-diag__row span{color:#8e879b;flex:0 0 auto}
+.ppv-diag__row strong{
+  color:#efe9f8;
+  font-weight:700;
+  text-align:right;
+  min-width:0;
+  overflow-wrap:anywhere;
+}
+.ppv-diag__warn{
+  margin:6px 0 0;
+  color:#e0a33c;
+  font-size:8px;
+  line-height:1.45;
+  overflow-wrap:anywhere;
+}
+/* Shown only when the clipboard write failed, so the text can still be
+   selected by hand. */
+.ppv-diag__fallback{
+  width:100%;
+  margin-top:8px;
+  min-height:120px;
+  box-sizing:border-box;
+  border-radius:8px;
+  border:1px solid rgba(255,255,255,.12);
+  background:rgba(10,8,16,.7);
+  color:#cdc6da;
+  font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
+  font-size:10px;
+  line-height:1.4;
+  padding:8px;
+  resize:vertical;
+}
+/* In the event-browser column the panel is a flex sibling of the scrolling
+   event list, so it bounds its own height rather than pushing the list out. */
+.live-tv-browser>.ppv-diag{
+  flex:0 1 auto;
+  min-height:0;
+  max-height:min(48vh,340px);
+  overflow-y:auto;
+  overscroll-behavior:contain;
+  -webkit-overflow-scrolling:touch;
+}
+/* Shown only when an event has no inline source but does have a validated
+   official destination. Opening it is always a user action. */
+.ppv-player__official{
+  margin-top:8px;
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+  border:1px solid #4a3a5e;
+  border-radius:999px;
+  background:#1a1424;
+  color:#e6dcf5;
+  padding:7px 14px;
+  font-size:9px;
+  font-weight:700;
+  letter-spacing:.04em;
+  text-decoration:none;
+}
+.ppv-player__idle-actions{
+  margin-top:8px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  flex-wrap:wrap;
+  gap:8px;
+}
+.ppv-player__idle-actions button{
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+  border:1px solid #4a3a5e;
+  border-radius:999px;
+  background:#1a1424;
+  color:#e6dcf5;
+  padding:7px 14px;
+  font-size:9px;
+  font-weight:700;
+  letter-spacing:.04em;
+  cursor:pointer;
+}
+.ppv-player__idle-actions button svg{width:13px}
+.ppv-player__idle-actions .ppv-player__official{margin-top:0}

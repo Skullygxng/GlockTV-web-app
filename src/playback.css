@@ -1,0 +1,253 @@
+html.playback-open,
+body.playback-open {
+  overflow: hidden !important;
+  overscroll-behavior: none;
+}
+
+.playback-overlay {
+  padding: clamp(12px, 3vw, 34px);
+  overflow: hidden;
+  overscroll-behavior: contain;
+  background: rgba(0, 0, 0, .9);
+  backdrop-filter: blur(16px);
+}
+
+.playback-modal {
+  width: min(1180px, 100%);
+  max-height: 94vh;
+  overflow: auto;
+  overscroll-behavior: contain;
+  border: 1px solid #34263f;
+  border-radius: 15px;
+  background: #050506;
+  box-shadow: 0 34px 120px #000;
+}
+
+.playback-modal__header,
+.playback-modal__footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 15px 18px;
+}
+
+.playback-modal__header {
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  border-bottom: 1px solid rgba(255, 255, 255, .06);
+  background: rgba(5, 5, 6, .94);
+  backdrop-filter: blur(16px);
+}
+
+.playback-modal__header span,
+.playback-modal__footer span {
+  display: block;
+  margin-bottom: 3px;
+  color: #a83bff;
+  font-size: 8px;
+  font-weight: 800;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+}
+
+.playback-brand { min-width: 0; display: grid; gap: 4px; }
+.playback-brand small { overflow: hidden; color: #bab4c0; font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
+
+.playback-modal__actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.server-picker { position: relative; }
+.playback-modal__header .server-picker__trigger { width: auto; min-width: 156px; height: 42px; padding: 0 10px; border-radius: 9px; display: flex; gap: 8px; text-align: left; }
+.server-picker__trigger>svg:first-child { color: #a83bff; }
+.server-picker__trigger>svg:last-child { width: 13px; color: #7d7683; }
+.server-picker__trigger>span { min-width: 0; flex: 1; font-size: 10px; }
+.server-picker__trigger small { display: block; margin: 0 0 2px; color: #716a78; font-size: 7px; letter-spacing: .1em; text-transform: uppercase; }
+.server-picker__menu { position: absolute; top: 48px; right: 0; z-index: 40; width: min(310px, calc(100vw - 32px)); max-height: min(420px, 60dvh); overflow: auto; overscroll-behavior: contain; border: 1px solid #3b3143; border-radius: 12px; background: rgba(15,14,18,.98); box-shadow: 0 22px 70px #000; backdrop-filter: blur(18px); }
+.playback-modal__header .server-picker__menu button { width: 100%; height: auto; min-height: 66px; padding: 13px 14px; border: 0; border-bottom: 1px solid #28232d; border-radius: 0; display: flex; justify-content: space-between; text-align: left; }
+.server-picker__menu button:last-child { border-bottom: 0; }
+.server-picker__menu button.active { background: linear-gradient(90deg,rgba(137,31,236,.22),transparent); }
+.server-picker__menu button span { display: grid; gap: 5px; }
+.server-picker__menu strong { font-size: 11px; }
+.server-picker__menu small { color: #837c89; font-size: 9px; }
+.server-picker__menu svg { color: #ad42ff; }
+
+.playback-modal__header button {
+  width: 38px;
+  height: 38px;
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  border: 1px solid #312b36;
+  border-radius: 50%;
+  background: #111015;
+}
+
+.playback-modal__header button svg { width: 17px; }
+
+.playback-modal__header .playback-retry {
+  width: auto;
+  padding: 0 12px;
+  border-radius: 999px;
+  display: flex;
+  gap: 6px;
+}
+
+.playback-modal__header .playback-retry span {
+  margin: 0;
+  color: #d9c7ee;
+  font-size: 9px;
+  letter-spacing: .08em;
+}
+
+.playback-frame {
+  position: relative;
+  isolation: isolate;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+  background: #000;
+}
+
+.playback-frame iframe {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  background: #000;
+}
+
+.playback-status {
+  position: absolute;
+  left: 14px;
+  bottom: 14px;
+  z-index: 4;
+  max-width: calc(100% - 28px);
+  min-height: 38px;
+  padding: 8px 11px;
+  border: 1px solid rgba(255,255,255,.16);
+  border-radius: 14px;
+  background: rgba(5,5,8,.88);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #c8c1ce;
+  font-size: 9px;
+  line-height: 1.35;
+  backdrop-filter: blur(12px);
+}
+
+.playback-status--loading { pointer-events: none; }
+.playback-status svg { width: 14px; flex: 0 0 auto; color: #a83bff; }
+.playback-status__actions { display: flex; gap: 6px; margin-left: 4px; }
+.playback-status button { border: 0; border-radius: 999px; background: #7f1ce7; padding: 6px 9px; color: #fff; font-size: 8px; font-weight: 700; white-space: nowrap; }
+.playback-status button:first-child { background: #242027; }
+
+.playback-unconfigured {
+  min-height: min(58vh, 620px);
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 9px;
+  padding: 30px;
+  text-align: center;
+  background: radial-gradient(circle at 50% 40%, rgba(126, 29, 225, .14), transparent 34%), #030304;
+}
+
+.playback-unconfigured svg { width: 34px; height: 34px; color: #a133fa; }
+.playback-unconfigured strong { font: 700 25px/1 'Barlow Condensed'; text-transform: uppercase; }
+.playback-unconfigured p { max-width: 430px; margin: 0; color: #827b89; font-size: 11px; line-height: 1.6; }
+
+.playback-modal__footer {
+  min-height: 70px;
+  border-top: 1px solid #1d1a20;
+}
+
+.playback-modal__footer h2 { margin: 4px 0 5px; font: 700 clamp(25px,3vw,36px)/.95 'Barlow Condensed'; text-transform: uppercase; }
+.playback-modal__footer>small { max-width: 390px; display: flex; align-items: center; gap: 7px; color: #77717e; font-size: 8px; line-height: 1.5; text-align: right; }
+.playback-modal__footer>small svg { width: 14px; flex: 0 0 auto; color: #8e29e8; }
+.playback-modal__footer strong { font-size: 10px; color: #c2bdc6; }
+/* The same synopsis the Discover card shows, so the player page says what the title is about. */
+.playback-overview { max-width: 640px; margin: 10px 0 0; color: #9a93a1; font-size: 12px; line-height: 1.6; }
+
+.playback-recommendations { padding: 20px 18px 24px; border-top: 1px solid #1d1a20; }
+.playback-recommendations header span { color: #a83bff; font-size: 8px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; }
+.playback-recommendations h3 { margin: 4px 0 13px; font: 700 25px/1 'Barlow Condensed'; text-transform: uppercase; }
+.playback-recommendations>div { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 10px; }
+.playback-recommendations button { min-width: 0; border: 1px solid #28232e; border-radius: 9px; background: #0d0c10; padding: 0 0 10px; overflow: hidden; display: grid; gap: 4px; text-align: left; }
+.playback-recommendations img,.playback-recommendations__fallback { width: 100%; aspect-ratio: 16/9; object-fit: cover; background: #15121a; display: grid; place-items: center; }
+.playback-recommendations button strong,.playback-recommendations button small { overflow: hidden; padding: 0 10px; text-overflow: ellipsis; white-space: nowrap; }
+.playback-recommendations button strong { font-size: 10px; }
+.playback-recommendations button small { color: #7f7885; font-size: 8px; }
+
+.episode-controls { display: flex; gap: 8px; }
+.episode-controls label { color: #847d8a; font-size: 8px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+.episode-controls input { display: block; width: 72px; height: 34px; margin-top: 5px; border: 1px solid #332d39; border-radius: 6px; outline: 0; background: #111015; color: #fff; padding: 0 9px; }
+.episode-controls input:focus { border-color: #8b24ed; box-shadow: 0 0 0 3px rgba(139, 36, 237, .13); }
+
+@media (max-width: 700px) {
+  .playback-overlay { padding: 0; align-items: stretch; }
+  .playback-modal { width: 100%; height: 100dvh; max-height: 100dvh; border: 0; border-radius: 0; padding-bottom: env(safe-area-inset-bottom); }
+  .playback-modal__header { min-height: calc(58px + env(safe-area-inset-top)); padding: max(8px, env(safe-area-inset-top)) 10px 8px; gap: 8px; }
+  .playback-brand small { max-width: 118px; font-size: 8px; }
+  .playback-modal__actions { gap: 5px; }
+  .playback-modal__header button { width: 34px; height: 34px; }
+  .playback-modal__header .server-picker__trigger { min-width: 0; width: 44px; padding: 0; justify-content: center; }
+  .server-picker__trigger>span,.server-picker__trigger>svg:last-child,.playback-retry span { display: none; }
+  .server-picker__menu { position: fixed; top: calc(58px + env(safe-area-inset-top)); right: 8px; max-height: 55dvh; }
+  .playback-modal__header .playback-retry { width: 34px; padding: 0; justify-content: center; }
+  .playback-frame { aspect-ratio: 16 / 9; min-height: 0; }
+  .playback-status { left: 10px; right: 10px; bottom: 10px; max-width: none; justify-content: center; flex-wrap: wrap; border-radius: 12px; text-align: center; }
+  .playback-status__actions { width: 100%; justify-content: center; margin: 2px 0 0; }
+  .playback-unconfigured { min-height: 58svh; }
+  .playback-modal__footer { align-items: flex-start; padding: 14px 16px; }
+  .playback-modal__footer>small { display: none; }
+  .playback-recommendations { padding: 18px 16px 24px; }
+  .playback-recommendations>div { grid-template-columns: repeat(2,minmax(0,1fr)); }
+  .episode-controls input { width: 64px; }
+}
+/*
+ * The muted-start line. Below the frame rather than over it, because the
+ * speaker it points at is the provider's own control inside the frame, and
+ * anything GlockTV paints over the frame risks covering it.
+ */
+.playback-muted-start,
+.playback-stalled {
+  margin: 0;
+  padding: 9px 18px;
+  border-top: 1px solid rgba(255, 255, 255, .06);
+  background: #0d0a13;
+  color: #c9bedd;
+  font-size: 10px;
+  line-height: 1.5;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.playback-muted-start svg,
+.playback-stalled svg { width: 16px; flex: none; color: #a83bff; }
+.playback-muted-start span,
+.playback-stalled span { flex: 1; min-width: 0; }
+
+/* A real control, sized for a thumb: this is the only way back to sound
+   that works inline on an iPhone, so it must not be a hint-sized link. */
+.playback-muted-start button,
+.playback-stalled button {
+  flex: none;
+  min-height: 36px;
+  padding: 0 16px;
+  border: 1px solid #6b4fa0;
+  border-radius: 999px;
+  background: #221a30;
+  color: #f0eaf8;
+  font-size: 10px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.playback-muted-start--hint { display: block; }

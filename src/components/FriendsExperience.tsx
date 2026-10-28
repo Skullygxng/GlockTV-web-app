@@ -1,0 +1,881 @@
+import { type FormEvent, type KeyboardEvent as ReactKeyboardEvent, useCallback, useEffect, useRef, useState } from 'react';
+import { motion } from 'motion/react';
+import { Ban, ChevronDown, Copy, Crown, DoorOpen, Flag, LoaderCircle, LockKeyhole, MessageCircle, Play, Radio, RefreshCw, Search, Send, Settings, ShieldCheck, Sparkles, Trash2, UserCheck, UserMinus, Users, Volume2, VolumeX, X } from 'lucide-react';
+import { imageUrl, type MediaItem } from '../lib/media';
+import type { TmdbClient } from '../lib/tmdb';
+import type { BannedPartyMember, OfficialLoungeBallotEntry, PartyMember, PartyMessage, PartyPresence, PartyRoom, PlaybackState, PublicPartyRoom, WatchPartyService } from '../lib/watchParty';
+import { isOfficialLounge, loungeShouldAdvance, officialBallotCandidates, officialBallotTallies, officialBallotWinner, visibleRoomChat } from '../lib/lounge';
+import { EpisodeBrowser } from './EpisodeBrowser';
+import { InviteJoinCard } from './InviteJoinCard';
+import { LoungeBallotPanel } from './LoungeBallotPanel';
+import { PartyPlaybackPlayer, type PartyPlaybackConfig } from './PartyPlaybackPlayer';
+import { optionId } from './SearchSuggestions';
+import { SUGGEST_MIN_CHARS, useMediaSearchSuggestions } from '../hooks/useMediaSearchSuggestions';
+import { useDialogBehavior } from '../hooks/useDialogBehavior';
+import { useAccount } from './AccountProvider';
+import '../friends.css';
+import { site } from '../config/site';
+
+interface FriendsExperienceProps {
+  client: TmdbClient;
+  service: WatchPartyService | null;
+  selectedTitle: MediaItem | null;
+  initialRoomCode?: string;
+  partyConfig: PartyPlaybackConfig;
+}
+
+const upsertMessage = (messages: PartyMessage[], message: PartyMessage) => messages.some((item) => item.id === message.id) ? messages : [...messages, message];
+
+interface RecentRoom {
+  code: string;
+  titleName: string;
+  wasHost: boolean;
+}
+
+const recentRoomKey = 'glocktv:recent-room:v1';
+
+function readRecentRoom(): RecentRoom | null {
+  try {
+    const value = JSON.parse(localStorage.getItem(recentRoomKey) ?? 'null') as Partial<RecentRoom> | null;
+    return value && typeof value.code === 'string' && typeof value.titleName === 'string'
+      ? { code: value.code, titleName: value.titleName, wasHost: value.wasHost === true }
+      : null;
+  } catch {
+    return null;
+  }
+}
+
+function syncLabel(member: PartyMember) {
+  if (member.syncStatus === 'synced') return 'Synced';
+  if (member.syncStatus === 'limited') return 'Limited sync';
+  if (member.syncStatus === 'drifting' && member.syncOffsetSeconds != null) {
+    const seconds = Math.max(1, Math.round(Math.abs(member.syncOffsetSeconds)));
+    return `${seconds}s ${member.syncOffsetSeconds < 0 ? 'behind' : 'ahead'}`;
+  }
+  return 'Connecting';
+}
+
+export function FriendsExperience({ client, service, selectedTitle, initialRoomCode = '', partyConfig }: FriendsExperienceProps) {
+  const [nickname, setNickname] = useState(() => sessionStorage.getItem('glocktv-nickname') ?? '');
+  const [roomCode, setRoomCode] = useState(initialRoomCode.toUpperCase());
+  const [room, setRoom] = useState<PartyRoom | null>(null);
+  const [publicRooms, setPublicRooms] = useState<PublicPartyRoom[]>([]);
+  const [userId, setUserId] = useState('');
+  const [members, setMembers] = useState<PartyMember[]>([]);
+  const [messages, setMessages] = useState<PartyMessage[]>([]);
+  const [message, setMessage] = useState('');
+  const [unreadMessages, setUnreadMessages] = useState(0);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  const [copied, setCopied] = useState(false);
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [query, setQuery] = useState('');
+  /* Scoped to the picker: a failed lookup must not blank out the room. */
+  const [searchError, setSearchError] = useState('');
+  /* The title commit, which is separate from the lookup that found it. */
+  const [choosing, setChoosing] = useState(false);
+  const [recentRoom, setRecentRoom] = useState<RecentRoom | null>(readRecentRoom);
+  const [leaveConfirm, setLeaveConfirm] = useState(false);
+  const [rosterOpen, setRosterOpen] = useState(false);
+  const [removeConfirmId, setRemoveConfirmId] = useState('');
+  const [transferConfirmId, setTransferConfirmId] = useState('');
+  const [moderatingMemberId, setModeratingMemberId] = useState('');
+  const [controlsOpen, setControlsOpen] = useState(false);
+  const [clearChatConfirm, setClearChatConfirm] = useState(false);
+  const [bannedMembers, setBannedMembers] = useState<BannedPartyMember[]>([]);
+  const [blockedUsers, setBlockedUsers] = useState<string[]>([]);
+  const [resyncToken, setResyncToken] = useState(0);
+  const [resyncNotice, setResyncNotice] = useState('');
+  /* Identity is the app's, not the watch party's. Friends reads it. */
+  const { account } = useAccount();
+  const [officialBallot, setOfficialBallot] = useState<OfficialLoungeBallotEntry[]>([]);
+  const loungeAdvanceKey = useRef('');
+  const messageList = useRef<HTMLDivElement>(null);
+  const chatAtBottom = useRef(true);
+  const previousMessageCount = useRef(0);
+  const presence = useRef<PartyPresence>({ syncStatus: 'connecting', syncOffsetSeconds: null, serverId: null });
+  const activeRoomId = useRef('');
+  const messageMutationVersion = useRef(0);
+  const snapshotVersion = useRef(0);
+  const blockedUsersRef = useRef<string[]>([]);
+  /* Mirrors `choosing`, so two clicks landing in one React batch cannot both
+     read the pre-commit value and start a write. */
+  const choosingRef = useRef(false);
+  /* The controls that open each panel, so focus goes back to them however the
+     panel was opened. */
+  const pickerTrigger = useRef<HTMLButtonElement>(null);
+  const controlsTrigger = useRef<HTMLButtonElement>(null);
+  const rosterTrigger = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    blockedUsersRef.current = blockedUsers;
+  }, [blockedUsers]);
+
+  useEffect(() => {
+    if (!service?.listPublicRooms || room) return;
+
+    let active = true;
+    const refreshPublicRooms = async () => {
+      try {
+        const nextRooms = await service.listPublicRooms();
+        if (active) setPublicRooms(nextRooms);
+      } catch {
+        // Public room discovery is non-critical and retries on the next refresh.
+      }
+    };
+
+    void refreshPublicRooms();
+    const timer = window.setInterval(() => { void refreshPublicRooms(); }, 60_000);
+    const onVisibility = () => {
+      if (document.visibilityState === 'visible') void refreshPublicRooms();
+    };
+
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => {
+      active = false;
+      window.clearInterval(timer);
+      document.removeEventListener('visibilitychange', onVisibility);
+    };
+  }, [room, service]);
+
+  const exitRemovedRoom = useCallback((code: string) => {
+    activeRoomId.current = '';
+    snapshotVersion.current += 1;
+    messageMutationVersion.current += 1;
+    const url = new URL(window.location.href); url.searchParams.delete('room'); window.history.replaceState({}, '', url);
+    const savedRoom = readRecentRoom();
+    if (savedRoom?.code === code) { localStorage.removeItem(recentRoomKey); setRecentRoom(null); }
+    setRoom(null); setMembers([]); setMessages([]); setRosterOpen(false); setControlsOpen(false); setRemoveConfirmId(''); setTransferConfirmId('');
+    setError('The host removed you from this room.');
+  }, []);
+
+  const refreshMembers = useCallback(async (roomId: string) => {
+    if (!service || activeRoomId.current !== roomId) return;
+    const nextMembers = await service.getMembers(roomId);
+    if (activeRoomId.current !== roomId) return;
+
+    if (room?.id === roomId && userId && !room.isOfficial && !nextMembers.some((member) => member.userId === userId)) {
+      exitRemovedRoom(room.code);
+      return;
+    }
+
+    setMembers(nextMembers);
+  }, [exitRemovedRoom, room?.code, room?.id, room?.isOfficial, service, userId]);
+
+  const refreshSnapshot = useCallback(async (roomId: string) => {
+    if (!service || activeRoomId.current !== roomId) return;
+
+    const requestVersion = ++snapshotVersion.current;
+    const messageVersionAtStart = messageMutationVersion.current;
+
+    const [nextRoom, nextMembers, nextMessages, nextBlocked] = await Promise.all([
+      service.getRoom(roomId),
+      service.getMembers(roomId),
+      service.getMessages(roomId),
+      service.getBlockedUsers?.() ?? Promise.resolve([]),
+    ]);
+
+    if (
+      activeRoomId.current !== roomId
+      || requestVersion !== snapshotVersion.current
+    ) {
+      return;
+    }
+
+    if (
+      userId
+      && !nextRoom.isOfficial
+      && !nextMembers.some((member) => member.userId === userId)
+    ) {
+      exitRemovedRoom(nextRoom.code);
+      return;
+    }
+
+    setRoom(nextRoom);
+    setMembers(nextMembers);
+    blockedUsersRef.current = nextBlocked;
+    setBlockedUsers(nextBlocked);
+
+    if (messageMutationVersion.current === messageVersionAtStart) {
+      setMessages(nextMessages.filter((item) => !nextBlocked.includes(item.userId)));
+    }
+  }, [exitRemovedRoom, service, userId]);
+
+  const enterRoom = useCallback(async (nextRoom: PartyRoom, nextUserId: string) => {
+    if (!service) return;
+
+    activeRoomId.current = nextRoom.id;
+    snapshotVersion.current += 1;
+    messageMutationVersion.current += 1;
+
+    const [nextMembers, nextMessages, nextBlocked] = await Promise.all([
+      service.getMembers(nextRoom.id), service.getMessages(nextRoom.id), service.getBlockedUsers?.() ?? Promise.resolve([]),
+    ]);
+
+    if (activeRoomId.current !== nextRoom.id) return;
+
+    chatAtBottom.current = true; previousMessageCount.current = 0; setUnreadMessages(0);
+    blockedUsersRef.current = nextBlocked;
+    setRoom(nextRoom); setUserId(nextUserId); setMembers(nextMembers); setBlockedUsers(nextBlocked);
+    setMessages(nextMessages.filter((item) => !nextBlocked.includes(item.userId)));
+    setLeaveConfirm(false); setRosterOpen(false);
+    if (!nextRoom.isOfficial) {
+      const nextRecentRoom = { code: nextRoom.code, titleName: nextRoom.titleName, wasHost: nextRoom.hostId === nextUserId };
+      setRecentRoom(nextRecentRoom);
+      localStorage.setItem(recentRoomKey, JSON.stringify(nextRecentRoom));
+    }
+    const url = new URL(window.location.href); url.searchParams.set('room', nextRoom.code); window.history.replaceState({}, '', url);
+  }, [service]);
+
+  useEffect(() => {
+    if (!service || !room || !isOfficialLounge(room)) {
+      setOfficialBallot([]);
+      return;
+    }
+    let cancelled = false;
+    service.getOfficialLoungeBallot(room.id)
+      .then((entries) => { if (!cancelled && activeRoomId.current === room.id) setOfficialBallot(entries); })
+      .catch(() => undefined);
+    return () => { cancelled = true; };
+  }, [room?.id, room?.isOfficial, room?.isPublic, room?.playbackUpdatedAt, service]);
+
+  useEffect(() => {
+    if (!service || !room) return;
+
+    return service.subscribe(room.id, {
+      onRoom: (nextRoom) => {
+        if (activeRoomId.current === nextRoom.id) setRoom(nextRoom);
+      },
+      onMessage: (next) => {
+        messageMutationVersion.current += 1;
+        if (!blockedUsersRef.current.includes(next.userId)) {
+          setMessages((previous) => upsertMessage(previous, next));
+        }
+      },
+      onMembersChanged: () => {
+        if (activeRoomId.current !== room.id) return;
+        void refreshMembers(room.id);
+      },
+      onChatCleared: () => {
+        if (activeRoomId.current !== room.id) return;
+        void refreshSnapshot(room.id);
+      },
+      onReady: () => {
+        if (activeRoomId.current !== room.id) return;
+        void refreshSnapshot(room.id);
+      },
+    });
+  }, [refreshMembers, refreshSnapshot, room?.id, service]);
+
+  useEffect(() => {
+    if (!service || !room || !service.heartbeatRoom) return;
+    let active = true;
+    const heartbeat = async () => {
+      if (!active || activeRoomId.current !== room.id) return;
+      try {
+        const nextRoom = await service.heartbeatRoom(room.id, presence.current);
+        if (active && activeRoomId.current === room.id) setRoom(nextRoom);
+      } catch {
+        // Realtime and the recovery snapshot handle transient network loss/removal.
+      }
+    };
+    void heartbeat();
+    const timer = window.setInterval(() => { void heartbeat(); }, 20_000);
+    const onVisibility = () => { if (document.visibilityState === 'visible') void heartbeat(); };
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => { active = false; window.clearInterval(timer); document.removeEventListener('visibilitychange', onVisibility); };
+  }, [room?.id, service]);
+
+  useEffect(() => {
+    if (!service || !room) return;
+
+    const roomId = room.id;
+    let active = true;
+
+    const checkRoomState = async () => {
+      if (!active || activeRoomId.current !== roomId) return;
+      try {
+        if (!room.isOfficial) {
+          const membership = await service.getMembershipStatus(roomId);
+          if (membership === 'removed') {
+            if (active && activeRoomId.current === roomId) exitRemovedRoom(room.code);
+            return;
+          }
+        }
+
+        if (activeRoomId.current !== roomId) return;
+        const nextRoom = await service.getRoom(roomId);
+        if (active && activeRoomId.current === roomId) setRoom(nextRoom);
+      } catch {
+        // Realtime remains primary; the recovery pass handles transient failures.
+      }
+    };
+
+    const recover = async () => {
+      if (!active || activeRoomId.current !== roomId) return;
+      try {
+        if (!room.isOfficial) {
+          const membership = await service.getMembershipStatus(roomId);
+          if (membership === 'removed') {
+            if (active && activeRoomId.current === roomId) exitRemovedRoom(room.code);
+            return;
+          }
+        }
+
+        if (active && activeRoomId.current === roomId) await refreshSnapshot(roomId);
+      } catch {
+        // A later heartbeat/recovery pass can repair a transient network failure.
+      }
+    };
+
+    // One lightweight entry check preserves resilience if Realtime is slow to connect.
+    void checkRoomState();
+
+    const recoveryTimer = window.setInterval(() => { void recover(); }, 45_000);
+    const onVisibility = () => {
+      if (document.visibilityState === 'visible') void recover();
+    };
+
+    document.addEventListener('visibilitychange', onVisibility);
+
+    return () => {
+      active = false;
+      window.clearInterval(recoveryTimer);
+      document.removeEventListener('visibilitychange', onVisibility);
+    };
+  }, [exitRemovedRoom, refreshSnapshot, room?.code, room?.id, room?.isOfficial, service]);
+
+  useEffect(() => {
+    const addedMessages = Math.max(0, messages.length - previousMessageCount.current);
+    previousMessageCount.current = messages.length;
+    if (!messages.length) { setUnreadMessages(0); return; }
+    const latestMessage = messages[messages.length - 1];
+    if (chatAtBottom.current || latestMessage.userId === userId) {
+      setUnreadMessages(0);
+      const list = messageList.current;
+      if (list) list.scrollTop = list.scrollHeight;
+    } else if (addedMessages) {
+      setUnreadMessages((count) => count + addedMessages);
+    }
+  }, [messages.length, userId]);
+
+  const handleChatScroll = () => {
+    const list = messageList.current;
+    if (!list) return;
+    const atBottom = list.scrollHeight - list.scrollTop - list.clientHeight <= 48;
+    chatAtBottom.current = atBottom;
+    if (atBottom) setUnreadMessages(0);
+  };
+
+  const jumpToLatestMessage = () => {
+    chatAtBottom.current = true;
+    setUnreadMessages(0);
+    const list = messageList.current;
+    if (list) list.scrollTop = list.scrollHeight;
+  };
+
+  const rememberNickname = () => sessionStorage.setItem('glocktv-nickname', nickname.trim());
+
+  const createParty = async () => {
+    if (!service || !selectedTitle || !nickname.trim()) return;
+    setBusy(true); setError('');
+    try {
+      rememberNickname();
+      const user = await service.ensureUser();
+      const nextRoom = await service.createRoom({
+        nickname: nickname.trim(), titleId: selectedTitle.id, mediaType: selectedTitle.mediaType, titleName: selectedTitle.title,
+        backdropPath: selectedTitle.backdropPath, durationSeconds: selectedTitle.runtime ? selectedTitle.runtime * 60 : null,
+      });
+      await enterRoom(nextRoom, user.id);
+    } catch (reason) { setError(reason instanceof Error ? reason.message : 'The room could not be created.'); }
+    finally { setBusy(false); }
+  };
+
+  const joinCode = async (code: string) => {
+    if (!service || !nickname.trim() || !code.trim()) return;
+    setBusy(true); setError('');
+    try {
+      rememberNickname();
+      const user = await service.ensureUser();
+      const nextRoom = await service.joinRoom(code.trim().toUpperCase(), nickname.trim());
+      await enterRoom(nextRoom, user.id);
+    } catch (reason) { setError(reason instanceof Error ? reason.message : 'That room is unavailable.'); }
+    finally { setBusy(false); }
+  };
+
+  const sendMessage = async (event: FormEvent) => {
+    event.preventDefault();
+    if (!service || !room || !message.trim() || members.find((member) => member.userId === userId)?.isMuted) return;
+    const body = message.trim(); setMessage('');
+    try {
+      const sent = await service.sendMessage(room.id, nickname.trim(), body);
+      messageMutationVersion.current += 1;
+      setMessages((previous) => upsertMessage(previous, sent));
+    }
+    catch (reason) { setMessage(body); setError(reason instanceof Error ? reason.message : 'Message failed to send.'); }
+  };
+
+  const setMemberMuted = async (member: PartyMember) => {
+    if (!service || !room || room.hostId !== userId || member.userId === userId) return;
+    setModeratingMemberId(member.userId); setError('');
+    try {
+      await service.setMemberMuted(room.id, member.userId, !member.isMuted);
+      setMembers((current) => current.map((item) => item.userId === member.userId ? { ...item, isMuted: !member.isMuted } : item));
+    } catch (reason) { setError(reason instanceof Error ? reason.message : 'That member could not be muted.'); }
+    finally { setModeratingMemberId(''); }
+  };
+
+  const removeMember = async (member: PartyMember) => {
+    if (!service || !room || room.hostId !== userId || member.userId === userId) return;
+    setModeratingMemberId(member.userId); setError('');
+    try {
+      await service.removeMember(room.id, member.userId);
+      setMembers((current) => current.filter((item) => item.userId !== member.userId));
+      setRemoveConfirmId('');
+    } catch (reason) { setError(reason instanceof Error ? reason.message : 'That member could not be removed.'); }
+    finally { setModeratingMemberId(''); }
+  };
+
+  const setCohost = async (member: PartyMember) => {
+    if (!service || !room || room.hostId !== userId) return;
+    setModeratingMemberId(member.userId); setError('');
+    try {
+      await service.setCohost(room.id, member.userId, !member.isCohost);
+      setMembers((current) => current.map((item) => item.userId === member.userId ? { ...item, isCohost: !member.isCohost } : item));
+    } catch (reason) { setError(reason instanceof Error ? reason.message : 'Co-host could not be changed.'); }
+    finally { setModeratingMemberId(''); }
+  };
+
+  const transferHost = async (member: PartyMember) => {
+    if (!service || !room || room.hostId !== userId) return;
+    setModeratingMemberId(member.userId); setError('');
+    try {
+      setRoom(await service.transferHost(room.id, member.userId));
+      setMembers((current) => current.map((item) => item.userId === userId ? { ...item, isCohost: true } : item.userId === member.userId ? { ...item, isCohost: false } : item));
+      setTransferConfirmId('');
+    } catch (reason) { setError(reason instanceof Error ? reason.message : 'Host control could not be transferred.'); }
+    finally { setModeratingMemberId(''); }
+  };
+
+  const openRoomControls = async () => {
+    if (!service || !room || room.hostId !== userId) return;
+    setControlsOpen(true); setError('');
+    try { setBannedMembers(await service.getBannedMembers(room.id)); }
+    catch (reason) { setError(reason instanceof Error ? reason.message : 'Removed people could not be loaded.'); }
+  };
+
+  const changeRoomControls = async (isLocked: boolean, slowModeSeconds: number) => {
+    if (!service || !room || room.hostId !== userId) return;
+    const optimistic = { ...room, isLocked, slowModeSeconds }; setRoom(optimistic);
+    try { setRoom(await service.setRoomControls(room.id, { isLocked, slowModeSeconds })); }
+    catch (reason) { setRoom(room); setError(reason instanceof Error ? reason.message : 'Room controls could not be changed.'); }
+  };
+
+  const clearRoomChat = async () => {
+    if (!service || !room || room.hostId !== userId) return;
+    try {
+      await service.clearChat(room.id);
+      messageMutationVersion.current += 1;
+      setMessages([]);
+      setClearChatConfirm(false);
+    }
+    catch (reason) { setError(reason instanceof Error ? reason.message : 'Room chat could not be cleared.'); }
+  };
+
+  const unbanMember = async (member: BannedPartyMember) => {
+    if (!service || !room || room.hostId !== userId) return;
+    try { await service.unbanMember(room.id, member.userId); setBannedMembers((current) => current.filter((item) => item.userId !== member.userId)); }
+    catch (reason) { setError(reason instanceof Error ? reason.message : 'That person could not be allowed back.'); }
+  };
+
+  const blockMember = async (member: PartyMember) => {
+    if (!service || !room || member.userId === userId) return;
+    const blocked = !blockedUsers.includes(member.userId);
+    try {
+      await service.blockUser(room.id, member.userId, blocked);
+      setBlockedUsers((current) => blocked ? [...new Set([...current, member.userId])] : current.filter((id) => id !== member.userId));
+      if (blocked) setMessages((current) => current.filter((item) => item.userId !== member.userId));
+    } catch (reason) { setError(reason instanceof Error ? reason.message : 'Block setting could not be changed.'); }
+  };
+
+  const reportMessage = async (item: PartyMessage) => {
+    if (!service || item.userId === userId) return;
+    try { await service.reportMessage(item.id, 'spam'); setResyncNotice(`Report sent privately to ${site.name}.`); }
+    catch (reason) { setError(reason instanceof Error ? reason.message : 'The message could not be reported.'); }
+  };
+
+  const changeRoomServer = async (serverId: string) => {
+    if (!service || !room || room.hostId !== userId) return;
+    try { setRoom(await service.setRoomServer(room.id, serverId)); }
+    catch (reason) { setError(reason instanceof Error ? reason.message : 'Room server could not be changed.'); }
+  };
+
+  const updateSyncHealth = (health: { status: PartyPresence['syncStatus']; offsetSeconds: number | null; serverId: string }) => {
+    presence.current = { syncStatus: health.status, syncOffsetSeconds: health.offsetSeconds, serverId: health.serverId };
+  };
+
+  const requestResync = () => {
+    setResyncToken((value) => value + 1);
+    setResyncNotice(room?.hostId === userId ? 'Room resync sent to everyone.' : 'Resync requested from the room clock.');
+    if (room) void refreshSnapshot(room.id);
+    if (room?.hostId === userId) void updatePlayback(room.playbackState, room.playbackPosition);
+    window.setTimeout(() => setResyncNotice(''), 2400);
+  };
+
+  const updatePlayback = async (state: PlaybackState, position: number) => {
+    if (!service || !room || room.hostId !== userId) return;
+    const optimistic = { ...room, playbackState: state, playbackPosition: Math.max(0, position), playbackUpdatedAt: new Date().toISOString() };
+    setRoom(optimistic);
+    try { await service.updatePlayback(room.id, state, position); } catch { setError('Playback did not sync.'); }
+  };
+
+  /*
+   * The picker searches as you type, on the same shared controller Discover
+   * uses, so the two surfaces cannot drift apart. Only the presentation is
+   * local: a poster grid inside the dialog rather than a floating popup.
+   *
+   * chooseTitle is a hoisted declaration so it can close over the controller it
+   * is handed to - it never runs before the hook returns.
+   */
+  const suggest = useMediaSearchSuggestions({
+    term: query,
+    search: client.search,
+    onSelect: (item) => void chooseTitle(item),
+    onError: () => setSearchError('Title search is unavailable right now.'),
+  });
+
+  const closePicker = useCallback(() => {
+    /*
+     * Everything the lookup owns goes with the dialog: a response still in
+     * flight is retired by reset(), so it cannot land as loading state or as
+     * results waiting for whoever opens the picker next.
+     */
+    suggest.reset();
+    setQuery('');
+    setSearchError('');
+    setPickerOpen(false);
+  }, [suggest]);
+
+  const openPicker = () => {
+    setQuery('');
+    setSearchError('');
+    /* A modal goes on top of the anchored popovers, so they close with it
+       rather than staying open underneath and competing for Escape. */
+    setRosterOpen(false);
+    setControlsOpen(false);
+    setPickerOpen(true);
+  };
+
+  async function chooseTitle(item: MediaItem) {
+    if (!service || !room || room.hostId !== userId) return;
+    /* One commit at a time: a second pick while the first is in flight would
+       race two updateTitle writes against each other. */
+    if (choosingRef.current) return;
+    choosingRef.current = true;
+    setChoosing(true); setError('');
+    try {
+      const context = await client.getTitleContext(item);
+      const nextRoom = await service.updateTitle(room.id, {
+        titleId: context.details.id, mediaType: context.details.mediaType, titleName: context.details.title,
+        backdropPath: context.details.backdropPath, durationSeconds: context.details.runtime ? context.details.runtime * 60 : null,
+      });
+      setRoom(nextRoom);
+      const nextRecentRoom = { code: nextRoom.code, titleName: nextRoom.titleName, wasHost: nextRoom.hostId === userId };
+      setRecentRoom(nextRecentRoom); localStorage.setItem(recentRoomKey, JSON.stringify(nextRecentRoom));
+      closePicker();
+    } catch (reason) { setError(reason instanceof Error ? reason.message : 'The room title could not be changed.'); }
+    finally { choosingRef.current = false; setChoosing(false); }
+  }
+
+  const onPickerKeyDown = (event: ReactKeyboardEvent) => {
+    /* Escape peels one layer at a time: the suggestion list first, the dialog
+       once there is no list left to close. */
+    if (event.key === 'Escape' && !suggest.visible) {
+      event.preventDefault();
+      closePicker();
+      return;
+    }
+    suggest.onKeyDown(event);
+  };
+
+  /* autoFocus stays false: the search box focuses itself, which is the
+     intended entry point here and the one a phone should open a keyboard for. */
+  const picker = useDialogBehavior<HTMLElement>({
+    open: pickerOpen,
+    onClose: closePicker,
+    returnFocus: pickerTrigger,
+    autoFocus: false,
+  });
+
+  /* Anchored popovers over a still-interactive room: Escape and focus, no trap. */
+  const hostingNow = !!room && room.hostId === userId;
+  const controlsPanel = useDialogBehavior<HTMLElement>({
+    open: controlsOpen && hostingNow,
+    onClose: () => setControlsOpen(false),
+    returnFocus: controlsTrigger,
+    containFocus: false,
+  });
+  const rosterPanel = useDialogBehavior<HTMLElement>({
+    open: rosterOpen,
+    onClose: () => setRosterOpen(false),
+    returnFocus: rosterTrigger,
+    containFocus: false,
+  });
+
+  const pickerResultsId = 'party-title-suggestions';
+  const trimmedQuery = query.trim();
+  /* Dismissing the list hides everything it owns, the status lines included. */
+  const pickerEmpty = suggest.open && !suggest.loading && !searchError
+    && trimmedQuery.length >= SUGGEST_MIN_CHARS && suggest.suggestions.length === 0;
+
+  const chooseEpisode = async (seasonNumber: number, episodeNumber: number) => {
+    if (!service || !room || room.hostId !== userId) return;
+    try { setRoom(await service.updateEpisode(room.id, seasonNumber, episodeNumber)); }
+    catch { setError('The episode could not be changed.'); }
+  };
+
+  const inviteUrl = (code: string) => {
+    const url = new URL(window.location.href); url.searchParams.set('room', code);
+    return url.toString();
+  };
+
+  const copyInvite = async () => {
+    if (!room) return;
+    await navigator.clipboard?.writeText(inviteUrl(room.code)); setCopied(true); window.setTimeout(() => setCopied(false), 1400);
+  };
+
+  const shareInvite = async () => {
+    if (!room) return;
+    const url = inviteUrl(room.code);
+    try {
+      if (typeof navigator.share === 'function') {
+        await navigator.share({ title: `${site.name} room ${room.code}`, text: `Join ${room.titleName} on ${site.name}`, url });
+        return;
+      }
+    } catch {
+      // Fall through to clipboard when share is cancelled or unavailable.
+    }
+    await navigator.clipboard?.writeText(url); setCopied(true); window.setTimeout(() => setCopied(false), 1400);
+  };
+
+  const voteLoungeTitle = async (item: MediaItem) => {
+    if (!service || !room || !isOfficialLounge(room)) return;
+    try {
+      setOfficialBallot(await service.castOfficialLoungeVote(room.id, item.id, item.mediaType));
+    } catch (reason) { setError(reason instanceof Error ? reason.message : 'Vote failed to send.'); }
+  };
+
+  const confirmLeaveRoom = async () => {
+    const leaving = room;
+    activeRoomId.current = '';
+    snapshotVersion.current += 1;
+    messageMutationVersion.current += 1;
+    const url = new URL(window.location.href); url.searchParams.delete('room'); window.history.replaceState({}, '', url);
+    setRoom(null); setMembers([]); setMessages([]); setOfficialBallot([]); setError(''); setLeaveConfirm(false); setRosterOpen(false); setControlsOpen(false); setRemoveConfirmId(''); setTransferConfirmId('');
+    if (service && leaving) await service.leaveRoom(leaving.id, userId).catch(() => undefined);
+    if (service?.listPublicRooms) service.listPublicRooms().then(setPublicRooms).catch(() => undefined);
+  };
+
+  useEffect(() => {
+    if (!service || !room || !isOfficialLounge(room)) return;
+    if (!loungeShouldAdvance({
+      durationSeconds: room.durationSeconds,
+      playbackPosition: room.playbackPosition,
+      playbackState: room.playbackState,
+      playbackUpdatedAt: room.playbackUpdatedAt,
+    })) return;
+    const winner = officialBallotWinner(officialBallot);
+    if (!winner || winner.titleId === room.titleId) return;
+    const advanceKey = `${room.id}:${room.titleId}:${winner.titleId}`;
+    if (loungeAdvanceKey.current === advanceKey) return;
+    loungeAdvanceKey.current = advanceKey;
+    let cancelled = false;
+    void (async () => {
+      try {
+        if (cancelled || activeRoomId.current !== room.id) return;
+        const nextRoom = await service.applyOfficialLoungeTitle(room.id);
+        if (!cancelled && activeRoomId.current === room.id) setRoom(nextRoom);
+      } catch {
+        loungeAdvanceKey.current = '';
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [officialBallot, room, service]);
+
+  if (!room) {
+    const heroImage = imageUrl(selectedTitle?.backdropPath ?? null, 'w1280');
+    return <motion.section className="friends-lobby friends-lobby--cinematic" aria-label="Friends watch party" initial={{ opacity: 0 }} animate={{ opacity: 1 }} style={heroImage ? { '--room-backdrop': `url(${heroImage})` } as React.CSSProperties : undefined}>
+      <div className="friends-hero">
+        <span><Users /> Friends</span><h1>Movie night,<br />together.</h1>
+        <p>Watch the full movie or episode in sync. The host controls playback while everyone shares the moment.</p>
+      </div>
+      <div className="friends-entry">
+        <div className="friends-identity-row"><label>Your nickname<input aria-label="Your nickname" maxLength={24} value={nickname} onChange={(event) => setNickname(event.target.value)} placeholder="How people see you" /></label>{account?.email ? <p className="friends-identity-note"><ShieldCheck /> Saved to {account.email}</p> : <p className="friends-identity-note"><ShieldCheck /> Playing as a guest. Protect this identity from your account in the top bar.</p>}</div>
+        {recentRoom && <section className="resume-room-card" aria-label="Recent watch party">
+          <div><small>{recentRoom.wasHost ? 'Your private room' : 'Recent room'}</small><strong>{recentRoom.titleName}</strong><span>Room {recentRoom.code} · pick up where you left off</span></div>
+          <button type="button" aria-label={`${recentRoom.wasHost ? 'Resume hosting' : 'Rejoin'} ${recentRoom.titleName}`} onClick={() => void joinCode(recentRoom.code)} disabled={busy || !service || !nickname.trim()}><Play fill="currentColor" /> {recentRoom.wasHost ? 'Resume hosting' : 'Rejoin room'}</button>
+        </section>}
+        <section className="public-rooms" aria-label="Public rooms">
+          <header><div><Radio /><span>Public now</span></div><small>Open to everyone</small></header>
+          {publicRooms.length ? publicRooms.map((publicRoom) => <article key={publicRoom.id} className="public-room-card" style={imageUrl(publicRoom.backdropPath, 'w780') ? { '--public-backdrop': `url(${imageUrl(publicRoom.backdropPath, 'w780')})` } as React.CSSProperties : undefined}>
+            <div><span><i /> {site.name} Lounge</span><strong>{publicRoom.titleName}</strong><small>{publicRoom.mediaType === 'tv' ? `Season ${publicRoom.seasonNumber} · Episode ${publicRoom.episodeNumber}` : 'Full movie'} · {Math.max(1, publicRoom.audienceCount)} watching</small></div>
+            <button type="button" onClick={() => void joinCode(publicRoom.code)} disabled={busy || !nickname.trim()}><Play fill="currentColor" /> Join room</button>
+          </article>) : <div className="public-room-card public-room-card--loading"><LoaderCircle className="spin" /><span>Finding the public lounge...</span></div>}
+        </section>
+        <section className="private-room-entry">
+          <header><div><LockKeyhole /><span>Private room</span></div><small>Invite-only</small></header>
+          <div className="private-room-entry__actions">
+            <div><small>From your Discover feed</small><strong>{selectedTitle?.title ?? 'Choose a title first'}</strong><span>{selectedTitle ? (selectedTitle.mediaType === 'movie' ? 'Full movie ready' : 'Season 1 · Episode 1 ready') : 'Return to Discover and pick what to watch'}</span></div>
+            <button type="button" onClick={() => void createParty()} disabled={busy || !service || !nickname.trim() || !selectedTitle}><Sparkles /> Create private room</button>
+          </div>
+          {initialRoomCode && <p className="invite-ready"><span className="live-dot" /> Invite ready · finish your nickname, then join.</p>}
+          <div className="room-code-row"><input aria-label="Room code" maxLength={6} value={roomCode} onChange={(event) => setRoomCode(event.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ''))} placeholder="ENTER CODE" /><button type="button" aria-label={initialRoomCode ? 'Join invite' : 'Join'} onClick={() => void joinCode(roomCode)} disabled={busy || !service || !nickname.trim() || roomCode.length !== 6}><DoorOpen /> {initialRoomCode ? 'Join invite' : 'Join'}</button></div>
+        </section>
+        {!service && <p className="friends-error">Friends is not connected yet.</p>}{error && <p className="friends-error" role="alert">{error}</p>}
+      </div>
+    </motion.section>;
+  }
+
+  const isHost = room.hostId === userId;
+  const currentMember = members.find((member) => member.userId === userId);
+  const chatMuted = currentMember?.isMuted === true;
+  const officialLounge = isOfficialLounge(room);
+  const visibleMessages = visibleRoomChat(
+    messages.filter((item) => !blockedUsers.includes(item.userId)),
+    officialLounge ? room : null,
+  );
+  const loungeVotes = officialLounge ? officialBallotTallies(officialBallot) : [];
+  const loungeCandidates = officialLounge ? officialBallotCandidates(officialBallot) : [];
+  const currentLoungeVote = officialLounge ? officialBallot.find((entry) => entry.isMine) : null;
+
+  const latestVisibleMessage = visibleMessages[visibleMessages.length - 1];
+  return <motion.section className="watch-party watch-party--cinematic" aria-label={`Watch party ${room.code}`} initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+    <header className="watch-party__header">
+      <div><span className="live-dot" /> {room.isPublic ? 'Public lounge' : 'Private room'} <strong>{room.code}</strong>{isHost && <em>Host</em>}</div>
+      <div className="watch-party__header-actions">
+        {isHost && <button ref={controlsTrigger} type="button" aria-label="Room controls" onClick={() => void openRoomControls()}><Settings /> Room controls</button>}
+        <button type="button" onClick={() => void copyInvite()}><Copy /> {copied ? 'Copied' : 'Copy invite'}</button>
+        {leaveConfirm ? <div className="leave-room-confirm"><button type="button" aria-label="Stay in room" onClick={() => setLeaveConfirm(false)}>Stay</button><button type="button" aria-label="Confirm leave room" onClick={() => void confirmLeaveRoom()}><DoorOpen /> {isHost ? 'Transfer or close' : 'Leave room'}</button></div> : <button type="button" onClick={() => setLeaveConfirm(true)}><DoorOpen /> Leave</button>}
+      </div>
+    </header>
+    <div className="watch-party__layout">
+      <section className="party-screen">
+        <PartyPlaybackPlayer room={room} config={partyConfig} isHost={isHost} onHostCommand={(state, position) => void updatePlayback(state, position)} onHostServerChange={(serverId) => void changeRoomServer(serverId)} onSyncHealth={updateSyncHealth} resyncToken={resyncToken} />
+        <div className="party-title-row"><div><span>{room.mediaType === 'tv' ? `Season ${room.seasonNumber} · Episode ${room.episodeNumber}` : 'Now watching'}</span><h1>{room.titleName}</h1>{room.isOfficial && <p className="official-room-note"><Radio /> Automated {site.name} host keeps the public lounge on one shared timeline.</p>}</div><div className="party-title-actions">{isHost && <button type="button" ref={pickerTrigger} onClick={openPicker}><Search /> Change title</button>}<button type="button" aria-label={isHost ? 'Resync everyone' : 'Resync me'} onClick={requestResync}><RefreshCw /> {isHost ? 'Resync everyone' : 'Resync me'}</button><div className="party-sync"><span className="live-dot" /> {room.playbackState === 'playing' ? 'Playing' : 'Paused'} · room clock</div></div></div>
+        {room.mediaType === 'tv' && <EpisodeBrowser compact client={client} seriesId={room.titleId} activeSeason={room.seasonNumber ?? 1} activeEpisode={room.episodeNumber ?? 1} canSelect={isHost} onSelect={(season, episode) => void chooseEpisode(season, episode)} />}
+        {resyncNotice && <p className="party-notice" role="status">{resyncNotice}</p>}{error && <p className="friends-error" role="alert">{error}</p>}
+      </section>
+      <aside className="party-chat" aria-label="Audience chat">
+        <header><div><MessageCircle /><strong>Audience chat</strong></div>{unreadMessages > 0 && latestVisibleMessage && <button className="party-chat-latest" type="button" aria-label="Jump to latest message" title={`${latestVisibleMessage.nickname}: ${latestVisibleMessage.body}`} onClick={jumpToLatestMessage}><span className="party-chat-latest__pulse" /><strong>{unreadMessages} new</strong><ChevronDown /></button>}<button ref={rosterTrigger} className="party-audience-button" type="button" aria-label={rosterOpen ? 'Hide people in this room' : 'Show people in this room'} aria-expanded={rosterOpen} onClick={() => setRosterOpen((open) => !open)}><Users /> {members.length}</button></header>
+        <InviteJoinCard code={room.code} titleName={room.titleName} copied={copied} onCopy={() => void copyInvite()} onShare={() => void shareInvite()} />
+        {officialLounge && <LoungeBallotPanel candidates={loungeCandidates} tallies={loungeVotes} currentVoteTitleId={currentLoungeVote?.titleId} disabled={chatMuted} onVote={(item) => void voteLoungeTitle(item)} />}
+        {controlsOpen && isHost && <section ref={controlsPanel} className="party-controls" role="dialog" aria-label="Room control panel">
+          <header><div><Settings /><strong>Room controls</strong></div><button type="button" aria-label="Close room controls" onClick={() => setControlsOpen(false)}><X /></button></header>
+          <button type="button" aria-label={room.isLocked ? 'Unlock new joins' : 'Lock new joins'} onClick={() => void changeRoomControls(!room.isLocked, room.slowModeSeconds ?? 0)}>{room.isLocked ? <LockKeyhole /> : <ShieldCheck />}<span><strong>{room.isLocked ? 'Room locked' : 'Lock new joins'}</strong><small>{room.isLocked ? 'Only existing members can return' : 'Stop anyone new from entering'}</small></span></button>
+          <label>Chat slow mode<select aria-label="Chat slow mode" value={room.slowModeSeconds ?? 0} onChange={(event) => void changeRoomControls(room.isLocked ?? false, Number(event.target.value))}><option value="0">Off</option><option value="3">3 seconds</option><option value="5">5 seconds</option><option value="10">10 seconds</option><option value="15">15 seconds</option><option value="30">30 seconds</option></select></label>
+          {clearChatConfirm ? <div className="party-controls__confirm"><span>Clear every message?</span><button type="button" aria-label="Cancel clear room chat" onClick={() => setClearChatConfirm(false)}>Cancel</button><button type="button" aria-label="Confirm clear room chat" onClick={() => void clearRoomChat()}>Clear</button></div> : <button type="button" aria-label="Clear room chat" onClick={() => setClearChatConfirm(true)}><Trash2 /><span><strong>Clear chat</strong><small>Remove the room conversation</small></span></button>}
+          <div className="party-controls__bans"><small>Removed people</small>{bannedMembers.length ? bannedMembers.map((member) => <div key={member.userId}><span><strong>{member.nickname}</strong><small>Blocked from this room</small></span><button type="button" aria-label={`Allow ${member.nickname} to rejoin`} onClick={() => void unbanMember(member)}>Allow back</button></div>) : <p>No one is currently removed.</p>}</div>
+        </section>}
+        {rosterOpen && <section ref={rosterPanel} className="party-roster" role="dialog" aria-label="People in this room">
+          <header><div><small>Watching now</small><strong>{members.length} {members.length === 1 ? 'person' : 'people'}</strong></div><button type="button" aria-label="Close people list" onClick={() => setRosterOpen(false)}><X /></button></header>
+          <ul>{members.map((member) => <li key={member.userId} className={member.isMuted ? 'is-muted' : ''}>
+            <span>{member.nickname.slice(0, 1).toUpperCase()}</span>
+            <div className="party-roster__identity"><strong>{member.nickname}</strong><small>{member.userId === userId ? 'You · ' : ''}{syncLabel(member)}</small>{member.isMuted && <small>Muted</small>}</div>
+            <div className="party-roster__badges">{member.userId === room.hostId && <em>Host</em>}{member.isCohost && <em>Co-host</em>}</div>
+            {member.userId !== userId && <div className="party-roster__actions">
+              <button type="button" aria-label={`${blockedUsers.includes(member.userId) ? 'Unblock' : 'Block'} ${member.nickname}`} title="Personal block" onClick={() => void blockMember(member)}>{blockedUsers.includes(member.userId) ? <UserCheck /> : <Ban />}</button>
+              {isHost && member.userId !== room.hostId && <>
+                <button type="button" aria-label={`${member.isCohost ? 'Remove' : 'Make'} ${member.nickname} co-host`} title="Co-host" onClick={() => void setCohost(member)} disabled={moderatingMemberId === member.userId}><Crown /></button>
+                <button type="button" aria-label={`Transfer host to ${member.nickname}`} title="Transfer host" onClick={() => setTransferConfirmId(member.userId)}><UserCheck /></button>
+                <button type="button" aria-label={`${member.isMuted ? 'Unmute' : 'Mute'} ${member.nickname}`} title={member.isMuted ? 'Unmute chat' : 'Mute chat'} onClick={() => void setMemberMuted(member)} disabled={moderatingMemberId === member.userId}>{member.isMuted ? <Volume2 /> : <VolumeX />}</button>
+                <button type="button" aria-label={`Remove ${member.nickname}`} title="Remove from room" onClick={() => setRemoveConfirmId(member.userId)}><UserMinus /></button>
+              </>}
+            </div>}
+            {transferConfirmId === member.userId && <div className="party-roster__confirm"><small>Make host?</small><button type="button" aria-label={`Cancel transfer host to ${member.nickname}`} onClick={() => setTransferConfirmId('')}>No</button><button type="button" aria-label={`Confirm transfer host to ${member.nickname}`} onClick={() => void transferHost(member)} disabled={moderatingMemberId === member.userId}>Yes</button></div>}
+            {removeConfirmId === member.userId && <div className="party-roster__confirm"><small>Remove?</small><button type="button" aria-label={`Cancel remove ${member.nickname}`} onClick={() => setRemoveConfirmId('')}>No</button><button type="button" aria-label={`Confirm remove ${member.nickname}`} onClick={() => void removeMember(member)} disabled={moderatingMemberId === member.userId}>Yes</button></div>}
+          </li>)}</ul>
+        </section>}
+        <div className="party-members" aria-label="People in this room">{members.map((member) => <span key={member.userId} title={member.nickname}>{member.nickname.slice(0, 1).toUpperCase()}</span>)}</div>
+        <div className="party-messages-shell">
+          <div ref={messageList} className="party-messages" role="log" aria-label="Chat messages" aria-live="polite" onScroll={handleChatScroll}>{!visibleMessages.length && <div className="party-chat__empty"><MessageCircle /><strong>The room is quiet</strong><span>Say hello to everyone watching.</span></div>}{visibleMessages.map((item) => <article key={item.id} className={item.userId === userId ? 'mine' : ''}><header><strong>{item.nickname}</strong><span><time>{new Date(item.createdAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}</time>{item.userId !== userId && <button type="button" aria-label={`Report message from ${item.nickname}`} title="Report privately" onClick={() => void reportMessage(item)}><Flag /></button>}</span></header><p>{item.body}</p></article>)}</div>
+        </div>
+        <form className={`party-compose${chatMuted ? ' party-compose--muted' : ''}`} onSubmit={(event) => void sendMessage(event)}><input aria-label="Message the room" maxLength={500} value={message} onChange={(event) => setMessage(event.target.value)} placeholder={chatMuted ? 'Chat muted by host' : room.slowModeSeconds ? `Slow mode · ${room.slowModeSeconds}s` : 'Message the room...'} disabled={chatMuted} /><button type="submit" aria-label="Send message" disabled={chatMuted || !message.trim()}><Send /></button>{chatMuted && <span><VolumeX /> Muted by host</span>}{room.isOfficial && !chatMuted && <span><ShieldCheck /> Public chat blocks spam and links</span>}</form>
+      </aside>
+    </div>
+    {pickerOpen && <div className="party-picker-backdrop">
+      <section
+        ref={picker}
+        className="party-picker"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Change watch party title"
+      >
+        <header>
+          <div><span>Host controls</span><h2>Choose the full title</h2></div>
+          <button type="button" aria-label="Close title picker" onClick={closePicker}><X /></button>
+        </header>
+        {/* Typing is enough to search. The button stays for anyone who expects
+            to press it, and re-opens the list rather than issuing a second
+            request of its own. */}
+        <form onSubmit={(event) => { event.preventDefault(); suggest.openSuggestions(); }}>
+          <Search />
+          <input
+            autoFocus
+            aria-label="Search watch party titles"
+            value={query}
+            onChange={(event) => { setQuery(event.target.value); setSearchError(''); suggest.setOpen(true); }}
+            onFocus={suggest.openSuggestions}
+            onKeyDown={onPickerKeyDown}
+            placeholder="Search movies and TV shows"
+            role="combobox"
+            aria-expanded={suggest.visible}
+            aria-controls={suggest.visible ? pickerResultsId : undefined}
+            aria-autocomplete="list"
+            aria-activedescendant={
+              suggest.visible && suggest.activeIndex >= 0
+                ? optionId(pickerResultsId, suggest.activeIndex)
+                : undefined
+            }
+          />
+          <button type="submit" aria-label="Search titles" disabled={choosing || !trimmedQuery}>
+            {suggest.loading || choosing ? <LoaderCircle className="spin" /> : 'Search'}
+          </button>
+        </form>
+        {/* Status lines sit outside the listbox so it only ever contains options. */}
+        {suggest.open && suggest.loading && !suggest.suggestions.length && (
+          <p className="party-picker__status" role="status"><LoaderCircle className="spin" /> Searching titles...</p>
+        )}
+        {suggest.open && searchError && <p className="party-picker__status party-picker__status--error" role="status">{searchError}</p>}
+        {pickerEmpty && <p className="party-picker__status" role="status">No titles match &ldquo;{trimmedQuery}&rdquo;.</p>}
+        {suggest.open && suggest.suggestions.length > 0 && (
+          <div className="party-picker__results" role="listbox" id={pickerResultsId} aria-label="Title suggestions">
+            {suggest.suggestions.map((item, index) => (
+              <button
+                type="button"
+                key={`${item.mediaType}-${item.id}`}
+                id={optionId(pickerResultsId, index)}
+                // activedescendant model: the input keeps focus, so options stay
+                // out of the Tab order.
+                tabIndex={-1}
+                role="option"
+                aria-selected={index === suggest.activeIndex}
+                className={index === suggest.activeIndex ? 'active' : ''}
+                aria-label={`Choose ${item.title}`}
+                // The input keeps focus, so the click must not blur it first.
+                onMouseDown={(event) => event.preventDefault()}
+                onMouseEnter={() => suggest.setActiveIndex(index)}
+                onClick={() => void chooseTitle(item)}
+                disabled={choosing}
+              >
+                {imageUrl(item.posterPath, 'w185')
+                  ? <img src={imageUrl(item.posterPath, 'w185')!} alt="" />
+                  : <span className="party-picker__poster"><Play /></span>}
+                <span><strong>{item.title}</strong><small>{item.year} · {item.mediaType === 'movie' ? 'Movie' : 'TV show'}</small></span>
+              </button>
+            ))}
+          </div>
+        )}
+      </section>
+    </div>}
+  </motion.section>;
+}
