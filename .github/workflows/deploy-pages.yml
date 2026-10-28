@@ -54,6 +54,7 @@ jobs:
         continue-on-error: true
 
       - name: Resolve build configuration
+        id: site
         env:
           TMDB_API_KEY_SECRET: ${{ secrets.TMDB_API_KEY }}
           # The instance's TMDB key, stored reversed so it is not plain text in
@@ -64,6 +65,8 @@ jobs:
           SUPABASE_URL_EMBEDDED: 'https://tsaxmnscadvibqqjzfyb.supabase.co'
           SUPABASE_PUBLISHABLE_KEY_VAR: ${{ vars.SUPABASE_PUBLISHABLE_KEY }}
           SUPABASE_PUBLISHABLE_KEY_EMBEDDED: 'sb_publishable_wHblWBAvdXxN4Cx6PsFD_Q_Ny5HqoVH'
+          PAGES_BASE_PATH: ${{ steps.pages.outputs.base_path }}
+          PAGES_BASE_URL: ${{ steps.pages.outputs.base_url }}
         run: |
           if [ -n "$TMDB_API_KEY_SECRET" ]; then
             tmdb="$TMDB_API_KEY_SECRET"
@@ -74,15 +77,27 @@ jobs:
           echo "VITE_SUPABASE_URL=${SUPABASE_URL_VAR:-$SUPABASE_URL_EMBEDDED}" >> "$GITHUB_ENV"
           echo "VITE_SUPABASE_PUBLISHABLE_KEY=${SUPABASE_PUBLISHABLE_KEY_VAR:-$SUPABASE_PUBLISHABLE_KEY_EMBEDDED}" >> "$GITHUB_ENV"
 
+          # configure-pages reports the base path without a trailing slash ("/repo"
+          # for a project site, "" for a custom domain). Everything below needs one
+          # leading and one trailing slash: "/repo/" or "/". Concatenating a slash
+          # onto the reported value, as this workflow used to, produced "//repo/",
+          # which the build rejects as a URL rather than a path.
+          base="${PAGES_BASE_PATH:-GlockTV-web-app}"
+          base="/${base#/}"
+          echo "base_path=${base%/}/" >> "$GITHUB_OUTPUT"
+
+          url="${PAGES_BASE_URL:-https://skullygxng.github.io/GlockTV-web-app}"
+          echo "site_url=${url%/}/" >> "$GITHUB_OUTPUT"
+
       - name: Build
         run: npm run build
         env:
-          # Where Pages will serve this build. Real values come from
-          # configure-pages when Pages exists; the fallbacks match
+          # Where Pages will serve this build, normalised above. The fallbacks in
+          # "Resolve build configuration" match
           # https://skullygxng.github.io/GlockTV-web-app/ — update them if the
           # repository is renamed or moves to a custom domain.
-          VITE_BASE_PATH: /${{ steps.pages.outputs.base_path || 'GlockTV-web-app' }}/
-          VITE_SITE_URL: ${{ steps.pages.outputs.base_url || 'https://skullygxng.github.io/GlockTV-web-app' }}/
+          VITE_BASE_PATH: ${{ steps.site.outputs.base_path }}
+          VITE_SITE_URL: ${{ steps.site.outputs.site_url }}
           VITE_MOVIE_EMBED_URL_TEMPLATE: 'https://www.vidcore.org/embed/movie/{tmdb_id}?autoPlay=true&theme=8B24ED&fullscreenButton=true&title=false'
           VITE_TV_EMBED_URL_TEMPLATE: 'https://www.vidcore.org/embed/tv/{tmdb_id}/{season_number}/{episode_number}?autoPlay=true&theme=8B24ED&fullscreenButton=true&title=false'
           VITE_BACKUP_MOVIE_EMBED_URL_TEMPLATE: 'https://vidzen.fun/movie/{tmdb_id}'
@@ -95,7 +110,7 @@ jobs:
           VITE_PARTY_BACKUP_TV_EMBED_URL_TEMPLATE: 'https://www.vidcore.org/embed/tv/{tmdb_id}/{season_number}/{episode_number}?autoPlay=true&theme=8B24ED&fullscreenButton=true&title=false'
 
       - name: Check build output
-        run: node scripts/check-build-output.mjs "/${{ steps.pages.outputs.base_path || 'GlockTV-web-app' }}/"
+        run: node scripts/check-build-output.mjs "${{ steps.site.outputs.base_path }}"
 
       - name: Upload site artifact
         uses: actions/upload-pages-artifact@v4
