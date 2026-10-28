@@ -10,6 +10,8 @@ import { SearchSuggestions, optionId } from './components/SearchSuggestions';
 import { useMediaSearchSuggestions } from './hooks/useMediaSearchSuggestions';
 import { useDialogBehavior } from './hooks/useDialogBehavior';
 import { AccountPanel } from './components/AccountPanel';
+import { AdminDashboard } from './components/AdminDashboard';
+import { useLoadSiteSettings, useSiteSettings } from './lib/siteSettings';
 import { SupportPanel } from './components/SupportPanel';
 import { AddToHomeScreen } from './components/AddToHomeScreen';
 import { AccountProvider, useAccount } from './components/AccountProvider';
@@ -98,24 +100,25 @@ function loadSession() {
 
 /*
  * The brand mark: the deployment's own artwork, resolved against the base path
- * so a sub-path host such as GitHub Pages finds it. The tile around it is CSS,
- * so this one file also backs the tab icon and the home-screen icon.
+ * so a sub-path host such as GitHub Pages finds it. An owner can point it at
+ * their own https image from the admin dashboard; blank keeps the bundled mark.
  */
-function BrandMark() {
-  return <img src={`${site.basePath}brand/logo-mark.png`} alt="" />;
+function BrandMark({ logoUrl }: { logoUrl?: string }) {
+  return <img src={logoUrl || `${site.basePath}brand/logo-mark.png`} alt="" />;
 }
 
 /*
  * The header lockup: the artwork in a rounded tile, beside the wordmark in the
- * display face - the condensed type of every heading, so the top bar reads as
- * part of the same design as the hero and the cards rather than sitting beside
- * them. Phones have no top bar at all: the mark lives in the tab icon there.
+ * display face. Both come from the deployment's settings, so renaming or
+ * recolouring the site in the admin dashboard changes the header live.
  */
 function Logo() {
+  const settings = useSiteSettings();
+  const name = settings.name || site.name;
   return (
-    <div className="logo" aria-label={site.name}>
-      <span className="logo__mark" aria-hidden="true"><BrandMark /></span>
-      <b>{site.wordmark}</b>
+    <div className="logo" aria-label={name}>
+      <span className="logo__mark" aria-hidden="true"><BrandMark logoUrl={settings.logoUrl} /></span>
+      <b>{name.toUpperCase()}</b>
     </div>
   );
 }
@@ -206,6 +209,11 @@ function AppShell({ client, partyService, playbackConfig, partyPlaybackConfig, b
   /* Opened from the account panel, which closes as it opens - two stacked
      right-hand sheets would trap focus between them. */
   const [supportOpen, setSupportOpen] = useState(false);
+  /* The owner's dashboard: opened from the account panel, which closes first. */
+  const [adminOpen, setAdminOpen] = useState(false);
+
+  /* The deployment's own branding, once: name, colours, logo and ad network. */
+  useLoadSiteSettings();
   /*
    * My List has two things in it that are both "yours": what you saved, and
    * what you are partway through. They share a destination rather than taking
@@ -1194,6 +1202,7 @@ const wheelLockedUntil = useRef(0);
         <AccountPanel
           onClose={() => setAccountOpen(false)}
           onOpenSupport={() => { setAccountOpen(false); setSupportOpen(true); }}
+          onOpenAdmin={() => { setAccountOpen(false); setAdminOpen(true); }}
           billing={billingService}
         />
       )}
@@ -1203,6 +1212,10 @@ const wheelLockedUntil = useRef(0);
           onClose={() => setSupportOpen(false)}
           service={supportService}
         />
+      )}
+
+      {adminOpen && (
+        <AdminDashboard onClose={() => setAdminOpen(false)} />
       )}
 
       <AddToHomeScreen />

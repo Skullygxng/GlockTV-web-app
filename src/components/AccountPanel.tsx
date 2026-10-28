@@ -1,14 +1,18 @@
-import { type FormEvent, useState } from 'react';
-import { CreditCard, LifeBuoy, LoaderCircle, LogOut, Mail, ShieldCheck, Sparkles, X } from 'lucide-react';
+import { type FormEvent, useEffect, useState } from 'react';
+import { CreditCard, LifeBuoy, LoaderCircle, LogOut, Mail, Palette, ShieldCheck, Sparkles, X } from 'lucide-react';
 import { useAccount } from './AccountProvider';
 import { useDialogBehavior } from '../hooks/useDialogBehavior';
 import { createDefaultBillingService, type BillingService } from '../lib/billing';
+import { createDefaultSupportStaffService, type SupportStaffService } from '../lib/supportStaff';
 import { site } from '../config/site';
 
 /*
  * The GlockTV account surface. It reads the global account layer and offers
  * the two identity actions; it has no way to change a tier, because nothing in
  * the browser does.
+ *
+ * The admin dashboard is one button further in, and only appears when the
+ * database says this account is staff - the panel asks, it does not decide.
  */
 let defaultBilling: BillingService | null | undefined;
 function getDefaultBilling(): BillingService | null {
@@ -16,16 +20,28 @@ function getDefaultBilling(): BillingService | null {
   return defaultBilling;
 }
 
+let defaultStaffService: SupportStaffService | null | undefined;
+function getDefaultStaffService(): SupportStaffService | null {
+  if (defaultStaffService === undefined) defaultStaffService = createDefaultSupportStaffService();
+  return defaultStaffService;
+}
+
 export function AccountPanel({
   onClose,
   onOpenSupport,
+  onOpenAdmin,
   billing: providedBilling,
+  staffService: providedStaffService,
 }: {
   onClose: () => void;
   /* Support is part of the account surface rather than a sixth destination. */
   onOpenSupport?: () => void;
+  /* The owner's dashboard, offered only to staff. */
+  onOpenAdmin?: () => void;
   /* Omit for the app's own billing client; pass null to run with no backend. */
   billing?: BillingService | null;
+  /* Omit for the app's own check; pass null to run with no backend. */
+  staffService?: SupportStaffService | null;
 }) {
   const {
     account, entitlements, loading, error,
@@ -33,6 +49,7 @@ export function AccountPanel({
     linkEmail, sendSignInLink, canSignOut, signOut,
   } = useAccount();
   const billing = providedBilling === undefined ? getDefaultBilling() : providedBilling;
+  const staffService = providedStaffService === undefined ? getDefaultStaffService() : providedStaffService;
 
   const [email, setEmail] = useState(account?.email ?? '');
   const [status, setStatus] = useState('');
@@ -42,8 +59,16 @@ export function AccountPanel({
      restartable by a second click while the first is still going. */
   const [billingBusy, setBillingBusy] = useState(false);
   const [billingError, setBillingError] = useState('');
+  const [isStaff, setIsStaff] = useState(false);
 
   const dialog = useDialogBehavior<HTMLElement>({ onClose });
+
+  useEffect(() => {
+    if (!staffService) { setIsStaff(false); return; }
+    let active = true;
+    void staffService.isStaff().then((value) => { if (active) setIsStaff(value); });
+    return () => { active = false; };
+  }, [staffService]);
 
   const isGuest = !account || account.isAnonymous;
   const isPremium = entitlements.tier === 'premium';
@@ -232,11 +257,18 @@ export function AccountPanel({
           {actionError && <small className="account-panel__error" role="alert">{actionError}</small>}
         </form>
 
-        {onOpenSupport && (
+        {(onOpenSupport || (onOpenAdmin && isStaff)) && (
           <div className="account-panel__actions">
-            <button type="button" onClick={onOpenSupport}>
-              <LifeBuoy /> Contact support
-            </button>
+            {onOpenAdmin && isStaff && (
+              <button type="button" onClick={onOpenAdmin}>
+                <Palette /> Admin dashboard
+              </button>
+            )}
+            {onOpenSupport && (
+              <button type="button" onClick={onOpenSupport}>
+                <LifeBuoy /> Contact support
+              </button>
+            )}
           </div>
         )}
       </section>
