@@ -44,7 +44,8 @@ function siteManifest(site: SiteConfig): Plugin {
     },
     configureServer(server) {
       server.middlewares.use((request, response, next) => {
-        if (request.url?.split('?')[0]?.endsWith('manifest.webmanifest')) {
+        const path = String((request as { url?: string }).url ?? '').split('?')[0];
+        if (path.endsWith('manifest.webmanifest')) {
           response.setHeader('Content-Type', 'application/manifest+json');
           response.end(body);
           return;
