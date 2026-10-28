@@ -409,8 +409,10 @@ const wheelLockedUntil = useRef(0);
    * panel used to claim "Popular with viewers who like ..." whether or not
    * anyone had liked anything, which is a claim this app cannot make.
    */
+  const genreNameOf = (id: number): string | undefined =>
+    genres.find(([genreId]) => genreId === id)?.[1];
   const filterGenreNames = filters.genreIds
-    .map((id) => genres.find(([genreId]) => genreId === id)?.[1])
+    .map(genreNameOf)
     .filter((name): name is string => Boolean(name));
   const whyReason = filterGenreNames.length
     ? `You filtered for ${filterGenreNames.slice(0, 2).join(' + ')}`
