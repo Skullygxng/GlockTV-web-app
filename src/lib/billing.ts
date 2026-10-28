@@ -2,12 +2,12 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { getSupabaseClient, type SupabaseConfig } from './supabaseClient';
 
 /*
- * The browser half of billing: ask the server for a hosted Stripe URL, then
- * go there. That is the whole surface.
+ * The browser half of billing: ask the server for a hosted checkout URL — a
+ * Bitcoin invoice via NOWPayments — then go there. That is the whole surface.
  *
  * There is no method here that changes a tier, and there cannot be - the
  * browser holds a publishable key, so anything it could call, anyone could
- * call. Checkout requests billing; only a signed Stripe webhook grants
+ * call. Checkout requests billing; only a verified payment webhook grants
  * Premium.
  */
 export interface BillingService {
@@ -58,7 +58,9 @@ export function createBillingService(client: SupabaseClient): BillingService {
   }
 
   return {
-    createCheckoutUrl: () => invoke('create-checkout', 'Checkout could not be started.'),
+    createCheckoutUrl: () => invoke('create-crypto-checkout', 'Bitcoin checkout could not be started.'),
+    /* The Stripe billing portal, retained for card members; Bitcoin members
+       extend by starting a new invoice instead. */
     createPortalUrl: () => invoke('create-billing-portal', 'The billing portal could not be opened.'),
   };
 }

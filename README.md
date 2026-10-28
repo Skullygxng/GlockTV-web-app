@@ -49,8 +49,9 @@ all, never an empty box.
 | Playback embeds | `MOVIE_EMBED_URL_TEMPLATE`, `TV_EMBED_URL_TEMPLATE`, backups, party | See the deploy workflow; each new embed host is also allowlisted in `src/lib/ppvEmbedPolicy.ts`. |
 
 Rebranding is a checklist, not a code change: see [REBRAND.md](REBRAND.md).
-Accounts, billing (Stripe), crypto payments and the staff support console are
-configured in the private main repository.
+Accounts, billing (Bitcoin checkout via NOWPayments, plugged in with secrets
+in the private main repository) and the staff support console are configured
+there too.
 
 ## Operations
 

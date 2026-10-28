@@ -68,10 +68,11 @@ export function AccountPanel({
 
   /*
    * Both membership actions do the same thing: ask the server for a hosted
-   * Stripe URL and go there. The browser never creates a Stripe object, and
-   * nothing here can change a tier - only the verified webhook does that.
+   * Bitcoin invoice (NOWPayments) and go there. The browser never talks to
+   * the payment provider, and nothing here can change a tier - only the
+   * verified IPN webhook does that.
    */
-  const goToStripe = async (request: () => Promise<string>, unavailable: string) => {
+  const goToCheckout = async (request: () => Promise<string>, unavailable: string) => {
     if (billingBusy) return;
     if (!billing) { setBillingError(unavailable); return; }
     setBillingBusy(true); setBillingError('');
@@ -148,12 +149,12 @@ export function AccountPanel({
               <button
                 type="button"
                 disabled={billingBusy}
-                onClick={() => void goToStripe(
-                  () => billing!.createPortalUrl(),
-                  'The billing portal could not be opened.',
+                onClick={() => void goToCheckout(
+                  () => billing!.createCheckoutUrl(),
+                  'Bitcoin checkout could not be started.',
                 )}
               >
-                {billingBusy ? <LoaderCircle className="spin" /> : <CreditCard />} Manage membership
+                {billingBusy ? <LoaderCircle className="spin" /> : <CreditCard />} Extend membership
               </button>
             </div>
           ) : isGuest ? (
@@ -168,9 +169,9 @@ export function AccountPanel({
               <button
                 type="button"
                 disabled={billingBusy}
-                onClick={() => void goToStripe(
+                onClick={() => void goToCheckout(
                   () => billing!.createCheckoutUrl(),
-                  'Checkout could not be started.',
+                  'Bitcoin checkout could not be started.',
                 )}
               >
                 {billingBusy ? <LoaderCircle className="spin" /> : <Sparkles />} Go Premium
