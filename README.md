@@ -45,6 +45,10 @@ Every optional integration ships blank. Filling in a repository variable
 it blank ships a build without it — an unconfigured ad slot renders nothing at
 all, never an empty box.
 
+Branding and the ad network can also be changed at runtime from the site's own
+admin dashboard (staff only, and it needs the backend below). A dashboard ad
+setup takes precedence over the variables in this table.
+
 | Feature | Repository variable(s) | Notes |
 | --- | --- | --- |
 | Ad network | `ADS_SCRIPT_URL` + one `ADS_ZONE_*` per slot | Script URL from your publisher dashboard (must be https); zone ids optional, one per placement. |
