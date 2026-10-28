@@ -38,7 +38,7 @@ export interface SiteConfig {
 }
 
 export const DEFAULT_SITE_NAME = 'GlockTV';
-const DEFAULT_FAVICON = '/favicon.svg';
+const DEFAULT_FAVICON = '/favicon.png';
 
 export class SiteConfigError extends Error {
   constructor(readonly problems: string[]) {
@@ -176,7 +176,7 @@ export function escapeHtml(value: string): string {
 
 /*
  * Fills the %SITE_*% placeholders in index.html. Runs before Vite's own HTML
- * processing, so the default "/favicon.svg" still gets the base path added.
+ * processing, so the default "/favicon.png" still gets the base path added.
  */
 export function renderSiteHtml(html: string, site: SiteConfig): string {
   const faviconType = site.favicon.type ? ` type="${escapeHtml(site.favicon.type)}"` : '';

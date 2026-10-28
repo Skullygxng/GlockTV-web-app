@@ -96,23 +96,12 @@ function loadSession() {
 }
 
 /*
- * The brand mark: a television set that is also a pistol. The screen is the
- * slide with the play glyph cut out of it, the grip hangs where a TV stand
- * would, and the rabbit-ear antennae say "television" where a gun alone would
- * not. It is the name drawn as one shape, and it holds up as a tab icon.
+ * The brand mark: the deployment's own artwork, resolved against the base path
+ * so a sub-path host such as GitHub Pages finds it. The tile around it is CSS,
+ * so this one file also backs the tab icon and the home-screen icon.
  */
 function BrandMark() {
-  return (
-    <svg viewBox="0 0 64 64" focusable="false" role="presentation" aria-hidden="true">
-      <path
-        fill="currentColor"
-        fillRule="evenodd"
-        d="M15 20H49A5 5 0 0 1 54 25V33A5 5 0 0 1 49 38H15A5 5 0 0 1 10 33V25A5 5 0 0 1 15 20ZM20 38H32L26 56H13ZM30.5 24.5 39 29l-8.5 4.5Z"
-      />
-      <path d="M27 20 18 8M37 20 46 8" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" />
-      <path d="M35 38v2.4a4.6 4.6 0 0 0 9.2 0V38" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" />
-    </svg>
-  );
+  return <img src={`${site.basePath}brand/logo-mark.png`} alt="" />;
 }
 
 /*
