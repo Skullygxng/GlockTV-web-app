@@ -27,6 +27,7 @@ export const PPV_IFRAME_ALLOW = 'autoplay; fullscreen; encrypted-media; picture-
  * No wildcards: adding an embed host is a deliberate, reviewed change.
  *
  *   streamed -> embed.st            (Streamed stream rows)
+ *   streamfree -> strmfree.st       (StreamFree stream rows)
  *   sportsrc -> embed.streamapi.cc  (SportSRC detail sources)
  *
  * Provider API origins (streamed.pk, api.sportsrc.org) are intentionally

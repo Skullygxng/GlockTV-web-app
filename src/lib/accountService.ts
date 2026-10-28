@@ -27,6 +27,12 @@ export interface AccountService {
   linkEmail(email: string): Promise<void>;
   /* Send a returning sign-in link. */
   sendSignInLink(email: string): Promise<void>;
+  /*
+   * End the session on this device. Optional: a service without a session
+   * model (test stubs) leaves it out, and the account surface hides the
+   * control rather than promising a button that would throw.
+   */
+  signOut?(): Promise<void>;
   /* Fires whenever the session changes; returns an unsubscribe. */
   onAuthChange(listener: () => void): () => void;
 }
@@ -126,6 +132,10 @@ export function createAccountService(client: SupabaseClient): AccountService {
         options: { emailRedirectTo: redirect },
       });
       if (error) throw new Error(error.message);
+    },
+
+    async signOut() {
+      await client.auth.signOut();
     },
 
     onAuthChange(listener: () => void) {

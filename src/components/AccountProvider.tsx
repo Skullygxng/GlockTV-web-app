@@ -35,6 +35,9 @@ export interface AccountState {
   confirmMembership: () => Promise<void>;
   linkEmail: (email: string) => Promise<void>;
   sendSignInLink: (email: string) => Promise<void>;
+  /* Ending the session is offered only when the service supports it. */
+  canSignOut: boolean;
+  signOut: () => Promise<void>;
 }
 
 /*
@@ -183,6 +186,15 @@ export function AccountProvider({
     await service.sendSignInLink(email);
   }, [service]);
 
+  /* A service without a session model (test stubs) never offers this. */
+  const canSignOut = typeof service?.signOut === 'function';
+
+  const signOut = useCallback(async () => {
+    if (!service?.signOut) throw new Error('Accounts are unavailable right now.');
+    await service.signOut();
+    await load();
+  }, [service, load]);
+
   const value = useMemo<AccountState>(() => ({
     account,
     entitlements,
@@ -195,10 +207,13 @@ export function AccountProvider({
     confirmMembership,
     linkEmail,
     sendSignInLink,
+    canSignOut,
+    signOut,
   }), [
     account, entitlements, loading, error, ready,
     confirmingMembership, confirmationTimedOut,
     load, confirmMembership, linkEmail, sendSignInLink,
+    canSignOut, signOut,
   ]);
 
   return <AccountContext.Provider value={value}>{children}</AccountContext.Provider>;
@@ -219,5 +234,7 @@ export function useAccount(): AccountState {
     confirmMembership: async () => {},
     linkEmail: async () => { throw new Error('Accounts are unavailable right now.'); },
     sendSignInLink: async () => { throw new Error('Accounts are unavailable right now.'); },
+    canSignOut: false,
+    signOut: async () => { throw new Error('Accounts are unavailable right now.'); },
   };
 }

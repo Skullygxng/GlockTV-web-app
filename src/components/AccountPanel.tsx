@@ -1,5 +1,5 @@
 import { type FormEvent, useState } from 'react';
-import { CreditCard, LifeBuoy, LoaderCircle, Mail, ShieldCheck, Sparkles, X } from 'lucide-react';
+import { CreditCard, LifeBuoy, LoaderCircle, LogOut, Mail, ShieldCheck, Sparkles, X } from 'lucide-react';
 import { useAccount } from './AccountProvider';
 import { useDialogBehavior } from '../hooks/useDialogBehavior';
 import { createDefaultBillingService, type BillingService } from '../lib/billing';
@@ -30,7 +30,7 @@ export function AccountPanel({
   const {
     account, entitlements, loading, error,
     confirmingMembership, confirmationTimedOut,
-    linkEmail, sendSignInLink,
+    linkEmail, sendSignInLink, canSignOut, signOut,
   } = useAccount();
   const billing = providedBilling === undefined ? getDefaultBilling() : providedBilling;
 
@@ -210,6 +210,22 @@ export function AccountPanel({
             >
               <Mail /> Email sign-in link
             </button>
+            {!isGuest && canSignOut && (
+              /* Ends the session on this device only: the account itself, its
+                 rooms and its history are untouched and sign back in by link. */
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => {
+                  setBusy(true); setStatus(''); setActionError('');
+                  void signOut().then(() => setStatus('Signed out on this device.'))
+                    .catch((reason: unknown) => setActionError(reason instanceof Error ? reason.message : 'That did not work. Try again.'))
+                    .finally(() => setBusy(false));
+                }}
+              >
+                <LogOut /> Sign out
+              </button>
+            )}
           </div>
           {status && <small role="status">{status}</small>}
           {actionError && <small className="account-panel__error" role="alert">{actionError}</small>}
