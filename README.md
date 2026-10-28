@@ -33,6 +33,11 @@ Optional overrides, when you want them:
 These override the embedded defaults when set. Optional branding, base path,
 embed-provider and ads overrides mirror the main repository's `.env.example`.
 
+**New owner of a fresh copy?** Run `npm run setup` (after `npm ci`) — the
+wizard asks for your brand, keys and owner email, writes `.env.local`, ties
+your email as the instance's admin, and prints the short checklist of browser
+steps that remain. Everything it collects is exactly the env documented here.
+
 ## Plug-in guide
 
 Every optional integration ships blank. Filling in a repository variable

@@ -3,6 +3,11 @@
 This repository is the template. A rebrand is configuration plus four image
 files — no code changes.
 
+**Shortcut:** run `npm run setup` first — the wizard walks through identity,
+backend keys, Bitcoin billing and the owner tie-in, and writes `.env.local`
+for you. The checklist below is the manual equivalent plus the artwork and
+colour steps it doesn't cover.
+
 ## 1. Identity (build-time env)
 
 | What | Variable |
