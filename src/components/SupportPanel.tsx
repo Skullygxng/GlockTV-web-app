@@ -1,5 +1,5 @@
 import { type FormEvent, useCallback, useEffect, useMemo, useState } from 'react';
-import { LifeBuoy, LoaderCircle, MessageSquare, Send, ShieldCheck, X } from 'lucide-react';
+import { Inbox, LifeBuoy, LoaderCircle, MessageSquare, Send, ShieldCheck, X } from 'lucide-react';
 import { useAccount } from './AccountProvider';
 import { useDialogBehavior } from '../hooks/useDialogBehavior';
 import {
@@ -14,20 +14,19 @@ import {
   type SupportService,
   type SupportTicket,
 } from '../lib/support';
+import { createDefaultSupportStaffService, type SupportStaffService } from '../lib/supportStaff';
+import { SupportInbox } from './SupportInbox';
 import '../support.css';
 import { site } from '../config/site';
 
 /*
  * Support, from the customer's side.
  *
- * There is no staff view here, and that is not an oversight - a staff console
- * is a different surface with a different threat model, and the seam it would
- * build on (staff_members, is_support_staff) exists and is enforced by the
- * database rather than by anything this component could assert.
- *
- * What this panel cannot do is worth reading as part of the design: it never
- * sends a status, never sends an author role, and offers no path to either.
- * Those are decided by the database.
+ * The staff console is a separate surface with a different threat model, so it
+ * lives in its own component and its own service: this panel only asks the
+ * database whether the caller is staff, and offers the way in if it is. What
+ * this panel cannot do is worth reading as part of the design: it never sends a
+ * status, never sends an author role, and offers no path to either.
  */
 let defaultService: SupportService | null | undefined;
 function getDefaultService(): SupportService | null {
@@ -35,16 +34,26 @@ function getDefaultService(): SupportService | null {
   return defaultService;
 }
 
+let defaultStaffService: SupportStaffService | null | undefined;
+function getDefaultStaffService(): SupportStaffService | null {
+  if (defaultStaffService === undefined) defaultStaffService = createDefaultSupportStaffService();
+  return defaultStaffService;
+}
+
 export function SupportPanel({
   onClose,
   service: providedService,
+  staffService: providedStaffService,
 }: {
   onClose: () => void;
   /* Omit for the app's own service; pass null to run with no backend. */
   service?: SupportService | null;
+  /* The console's service. Only used to answer "is this caller staff?". */
+  staffService?: SupportStaffService | null;
 }) {
   const { account } = useAccount();
   const service = providedService === undefined ? getDefaultService() : providedService;
+  const staffService = providedStaffService === undefined ? getDefaultStaffService() : providedStaffService;
   const dialog = useDialogBehavior<HTMLElement>({ onClose });
 
   const [tickets, setTickets] = useState<SupportTicket[]>([]);
@@ -53,6 +62,8 @@ export function SupportPanel({
   const [loading, setLoading] = useState(Boolean(service));
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const [isStaff, setIsStaff] = useState(false);
+  const [inboxOpen, setInboxOpen] = useState(false);
 
   const [category, setCategory] = useState<SupportCategory>('account');
   const [subject, setSubject] = useState('');
@@ -77,6 +88,18 @@ export function SupportPanel({
   }, [service]);
 
   useEffect(() => { void refresh(); }, [refresh]);
+
+  /*
+   * Is this caller staff? Asked of the database about this user alone, so the
+   * button is a convenience, not the boundary - the console's queries and the
+   * reply trigger are refused for anybody is_support_staff() does not know.
+   */
+  useEffect(() => {
+    if (!staffService) { setIsStaff(false); return; }
+    let active = true;
+    void staffService.isStaff().then((value) => { if (active) setIsStaff(value); });
+    return () => { active = false; };
+  }, [staffService]);
 
   useEffect(() => {
     if (!service || !openTicket) { setMessages([]); return; }
@@ -122,11 +145,22 @@ export function SupportPanel({
     }
   };
 
+  /* The console replaces the customer panel rather than stacking on top of it:
+     two dialogs in the same overlay would fight over focus. */
+  if (inboxOpen) {
+    return <SupportInbox onClose={() => setInboxOpen(false)} service={staffService} />;
+  }
+
   return (
     <div className="overlay overlay--right">
       <section ref={dialog} className="support-panel" role="dialog" aria-label={`${site.name} support`} aria-modal="true">
         <header>
           <div><LifeBuoy /><h2>Support</h2></div>
+          {isStaff && (
+            <button type="button" aria-label="Open support inbox" onClick={() => setInboxOpen(true)}>
+              <Inbox />
+            </button>
+          )}
           <button type="button" aria-label="Close support" onClick={onClose}><X /></button>
         </header>
 

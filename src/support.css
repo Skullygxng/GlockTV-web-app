@@ -120,3 +120,10 @@
   .support-panel { width: 100%; padding: 20px 16px calc(24px + env(safe-area-inset-bottom, 0px)); }
   .support-panel h3 { font-size: 18px; }
 }
+
+
+/* The staff inbox: the same panel, wider, with the queue's own toolbar. */
+.support-inbox{width:min(520px,100%)}
+.support-inbox__toolbar{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:0 0 10px;color:#938fa0;font-size:10px;text-transform:uppercase;letter-spacing:.06em}
+.support-inbox__toolbar button{display:inline-flex;align-items:center;gap:6px;min-height:30px;padding:0 11px;border:1px solid #342d3a;border-radius:999px;background:#151218;color:#cfc6d8;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.04em}
+.support-inbox__toolbar svg{width:13px;height:13px}
