@@ -105,10 +105,10 @@ function BrandMark() {
 }
 
 /*
- * The header lockup: the mark in a violet gradient tile, beside the wordmark in
- * the display face. It borrows the primary action's gradient and the condensed
- * type of every heading, so the top bar reads as part of the same design as the
- * hero and the cards instead of sitting beside them.
+ * The header lockup: the artwork in a rounded tile, beside the wordmark in the
+ * display face - the condensed type of every heading, so the top bar reads as
+ * part of the same design as the hero and the cards rather than sitting beside
+ * them. Phones have no top bar at all: the mark lives in the tab icon there.
  */
 function Logo() {
   return (
@@ -904,11 +904,6 @@ const wheelLockedUntil = useRef(0);
                 </form>
               ) : (
                 <>
-                  {/* The lockup is desktop-only, so the phone bar carries the
-                      mark alone, ahead of the filters. */}
-                  <span className="mobile-brand" aria-hidden="true">
-                    <BrandMark />
-                  </span>
                   {(['both', 'movies', 'tv'] as const).map((type) => (
                     <button
                       key={type}
