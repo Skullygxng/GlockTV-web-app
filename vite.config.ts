@@ -111,6 +111,16 @@ export default defineConfig(({ mode }) => {
   return {
     base: site.basePath,
     plugins: [react(), siteHtml(site), siteManifest(site), siteCrawlFiles(site)],
+    build: {
+      rollupOptions: {
+        output: {
+          /* One cacheable vendor chunk: the libraries change far less often
+             than the app, so a release does not re-download React and Supabase
+             for every visitor. */
+          manualChunks: (id) => (id.includes('node_modules') ? 'vendor' : undefined),
+        },
+      },
+    },
     test: {
       environment: 'jsdom',
       globals: true,
