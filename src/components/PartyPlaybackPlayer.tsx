@@ -50,8 +50,8 @@ export function getPartyPlaybackConfig(): PartyPlaybackConfig {
   const cineSrcTv = import.meta.env.VITE_CINESRC_TV_EMBED_URL_TEMPLATE ?? '';
   return { movieUrlTemplate: cineSrcMovie, tvUrlTemplate: cineSrcTv, servers: [
     { id: 'cinesrc', label: 'CineSrc Sync', description: 'Documented play, pause and seek controls', movieUrlTemplate: cineSrcMovie, tvUrlTemplate: cineSrcTv, commandMode: 'cinesrc', startTimeParam: 't' },
-    { id: 'auto', label: 'VidCore Backup', description: 'Standard playback fallback \u00b7 limited room sync', movieUrlTemplate: autoMovie, tvUrlTemplate: autoTv, commandMode: 'none' },
-    { id: 'backup', label: 'VidZen Backup', description: 'Alternate provider \u00b7 limited room sync', movieUrlTemplate: legacyMovie, tvUrlTemplate: legacyTv, commandMode: 'vidzen' },
+    { id: 'auto', label: 'VidCore Backup', description: 'Standard playback fallback · limited room sync', movieUrlTemplate: autoMovie, tvUrlTemplate: autoTv, commandMode: 'none' },
+    { id: 'backup', label: 'VidZen Backup', description: 'Alternate provider · limited room sync', movieUrlTemplate: legacyMovie, tvUrlTemplate: legacyTv, commandMode: 'vidzen' },
   ] };
 }
 
@@ -295,7 +295,7 @@ export function PartyPlaybackPlayer({ room, config, isHost, onHostCommand, onHos
         {servers.length > 1 && <button type="button" onClick={nextProvider}>Next server</button>}
       </>}
     </div>}
-    {isHost && <div className="party-video__host-note"><strong>Host controls</strong><span>Use the player controls \u00b7 your changes sync to everyone</span></div>}
+    {isHost && <div className="party-video__host-note"><strong>Host controls</strong><span>Use the player controls · your changes sync to everyone</span></div>}
     {!isHost && shouldMountPlayer && <div className={`party-video__lock ${!room.isOfficial && !guestActivated ? 'party-video__lock--action' : ''}`}>{room.isOfficial
       ? <span>Tap the player once to join the public timeline</span>
       : guestActivated

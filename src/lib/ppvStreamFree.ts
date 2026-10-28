@@ -56,10 +56,16 @@ function categoryOf(upstream: string): PpvCategory {
 }
 
 function statusOf(startsAtMs: number, isLive: boolean, now: number): PpvEvent['status'] {
+  /*
+   * A provider's live_sources list goes stale: StreamFree leaves `live` set on
+   * channels it carried weeks ago, and showing a four-month-old fixture as
+   * "living now" is worse than showing nothing. Anything that started more than
+   * six hours ago is over, whatever the flags say.
+   */
+  if (startsAtMs < now - 6 * 60 * 60 * 1000) return 'ended';
   if (isLive) return 'live';
   if (startsAtMs > now + 60_000) return 'upcoming';
-  if (startsAtMs > now - 6 * 60 * 60 * 1000) return 'live';
-  return 'ended';
+  return 'live';
 }
 
 function toEvent(row: StreamFreeStream, now: number): PpvEvent | null {
