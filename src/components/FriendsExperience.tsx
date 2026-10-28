@@ -55,6 +55,19 @@ function syncLabel(member: PartyMember) {
   return 'Connecting';
 }
 
+/*
+ * The party server is a separate service from this page, so losing the network
+ * to it is not the same as "that room does not exist". Say what actually
+ * happened, instead of passing through a raw "Load failed" from the browser.
+ */
+function watchPartyFailure(reason: unknown, fallback: string): string {
+  const message = reason instanceof Error ? reason.message : '';
+  if (/load failed|failed to fetch|network|timed? ?out|abort/i.test(message)) {
+    return "The watch-party server can't be reached right now. Try again in a moment.";
+  }
+  return message || fallback;
+}
+
 export function FriendsExperience({ client, service, selectedTitle, initialRoomCode = '', partyConfig }: FriendsExperienceProps) {
   const [nickname, setNickname] = useState(() => sessionStorage.getItem('glocktv-nickname') ?? '');
   const [roomCode, setRoomCode] = useState(initialRoomCode.toUpperCase());
@@ -387,7 +400,7 @@ export function FriendsExperience({ client, service, selectedTitle, initialRoomC
         backdropPath: selectedTitle.backdropPath, durationSeconds: selectedTitle.runtime ? selectedTitle.runtime * 60 : null,
       });
       await enterRoom(nextRoom, user.id);
-    } catch (reason) { setError(reason instanceof Error ? reason.message : 'The room could not be created.'); }
+    } catch (reason) { setError(watchPartyFailure(reason, 'The room could not be created.')); }
     finally { setBusy(false); }
   };
 
@@ -399,7 +412,7 @@ export function FriendsExperience({ client, service, selectedTitle, initialRoomC
       const user = await service.ensureUser();
       const nextRoom = await service.joinRoom(code.trim().toUpperCase(), nickname.trim());
       await enterRoom(nextRoom, user.id);
-    } catch (reason) { setError(reason instanceof Error ? reason.message : 'That room is unavailable.'); }
+    } catch (reason) { setError(watchPartyFailure(reason, 'That room is unavailable.')); }
     finally { setBusy(false); }
   };
 
