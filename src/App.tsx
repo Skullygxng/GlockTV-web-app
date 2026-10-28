@@ -1035,7 +1035,7 @@ const wheelLockedUntil = useRef(0);
 
             {/* Below the feed content, in flow: it scrolls with the page and
                 never overlays a card. The friends stage carries no slot. */}
-            {!!currentItems.length && view !== 'friends' && (
+            {!!currentItems.length && (
               <AdSlot placement="in-feed" />
             )}
 
