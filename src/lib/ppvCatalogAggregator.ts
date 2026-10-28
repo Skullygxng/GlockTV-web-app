@@ -346,10 +346,17 @@ function endpointOf(
   providerId: PpvCatalogProviderId,
   name: string,
 ): PpvCatalogEndpointDiagnostics {
-  const entry = providers
-    .find((provider) => provider.providerId === providerId)
-    ?.endpoints.find((endpoint) => endpoint.name === name);
-  return entry ?? { ...NOT_ATTEMPTED, name };
+  const provider = providers.find((entry) => entry.providerId === providerId);
+  const entry = provider?.endpoints.find((endpoint) => endpoint.name === name);
+  if (entry) return entry;
+  /*
+   * A provider that answered but has no endpoint by this name simply does not
+   * publish that per-day window - it is not a failed request. Only a provider
+   * that never answered at all is "not attempted".
+   */
+  return provider
+    ? { status: 'empty_success', httpStatus: null, rowCount: 0, name }
+    : { ...NOT_ATTEMPTED, name };
 }
 
 function aggregateStatus(

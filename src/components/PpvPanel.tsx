@@ -45,6 +45,9 @@ const FILTERS: Array<{ id: 'all' | 'live' | 'upcoming' | PpvCategory; label: str
   { id: 'mma', label: 'MMA' },
   { id: 'boxing', label: 'Boxing' },
   { id: 'wrestling', label: 'Wrestling' },
+  /* Everything the fight filters do not cover: the live sport the stream
+     providers carry alongside the cards. */
+  { id: 'other', label: 'Other sport' },
 ];
 
 /*
@@ -149,7 +152,7 @@ export function PpvPanel({
       .filter(({ event, status }) => {
         if (filter === 'live' && status !== 'live') return false;
         if (filter === 'upcoming' && status !== 'upcoming') return false;
-        if (filter === 'mma' || filter === 'boxing' || filter === 'wrestling') {
+        if (filter === 'mma' || filter === 'boxing' || filter === 'wrestling' || filter === 'other') {
           if (event.category !== filter) return false;
         }
         if (!term) return true;
@@ -215,8 +218,8 @@ export function PpvPanel({
                 <Swords />
                 <strong>Choose a PPV event</strong>
                 <span>
-                  Live and upcoming fight cards. Hosted player availability varies by event; some
-                  events link to the official provider instead.
+                  Live sport and upcoming fight cards. Hosted player availability varies by
+                  event; some events link to the official provider instead.
                 </span>
               </div>
             </div>
