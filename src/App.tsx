@@ -96,15 +96,35 @@ function loadSession() {
 }
 
 /*
- * The header lockup: the play glyph in a violet gradient tile, beside the
- * wordmark in the display face. It borrows the primary action's gradient and
- * the condensed type of every heading, so the top bar reads as part of the same
- * design as the hero and the cards instead of sitting beside them.
+ * The brand mark: a television set that is also a pistol. The screen is the
+ * slide with the play glyph cut out of it, the grip hangs where a TV stand
+ * would, and the rabbit-ear antennae say "television" where a gun alone would
+ * not. It is the name drawn as one shape, and it holds up as a tab icon.
+ */
+function BrandMark() {
+  return (
+    <svg viewBox="0 0 64 64" focusable="false" role="presentation" aria-hidden="true">
+      <path
+        fill="currentColor"
+        fillRule="evenodd"
+        d="M15 20H49A5 5 0 0 1 54 25V33A5 5 0 0 1 49 38H15A5 5 0 0 1 10 33V25A5 5 0 0 1 15 20ZM20 38H32L26 56H13ZM30.5 24.5 39 29l-8.5 4.5Z"
+      />
+      <path d="M27 20 18 8M37 20 46 8" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" />
+      <path d="M35 38v2.4a4.6 4.6 0 0 0 9.2 0V38" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+/*
+ * The header lockup: the mark in a violet gradient tile, beside the wordmark in
+ * the display face. It borrows the primary action's gradient and the condensed
+ * type of every heading, so the top bar reads as part of the same design as the
+ * hero and the cards instead of sitting beside them.
  */
 function Logo() {
   return (
     <div className="logo" aria-label={site.name}>
-      <span className="logo__mark" aria-hidden="true"><Play fill="currentColor" strokeWidth={0} /></span>
+      <span className="logo__mark" aria-hidden="true"><BrandMark /></span>
       <b>{site.wordmark}</b>
     </div>
   );
@@ -898,7 +918,7 @@ const wheelLockedUntil = useRef(0);
                   {/* The lockup is desktop-only, so the phone bar carries the
                       mark alone, ahead of the filters. */}
                   <span className="mobile-brand" aria-hidden="true">
-                    <Play fill="currentColor" strokeWidth={0} />
+                    <BrandMark />
                   </span>
                   {(['both', 'movies', 'tv'] as const).map((type) => (
                     <button
