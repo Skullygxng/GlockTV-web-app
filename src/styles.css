@@ -77,3 +77,10 @@ html{scrollbar-width:none}html::-webkit-scrollbar{display:none}
    way forward from that screen short of reloading the page. */
 .state-panel__retry{margin-top:14px;min-height:40px;padding:0 18px;display:inline-flex;align-items:center;gap:8px;border:1px solid #6b4fa0;border-radius:999px;background:#221a30;color:#f0eaf8;font-size:11px;font-weight:700;cursor:pointer}
 .state-panel__retry svg{width:15px}
+
+
+/* The account avatar sits right next to the wordmark, so a bare letter in a
+   ring reads as a second, broken logo. A guest gets the brand gradient and a
+   person glyph instead; a signed-in member keeps their own initial. */
+.avatar--guest{background:linear-gradient(140deg,rgba(112,19,237,.62),rgba(147,31,255,.26));border-color:rgba(159,55,255,.9)}
+.avatar svg{width:16px;height:16px}

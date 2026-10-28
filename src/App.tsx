@@ -1196,19 +1196,21 @@ const wheelLockedUntil = useRef(0);
 
 /*
  * The account entry point. It says what the account is at a glance - a guest
- * initial, an email initial, or the Premium mark - and opens the one account
- * surface.
+ * person icon, an email initial, or the Premium mark - and opens the one
+ * account surface.
  */
 function AccountButton({ onOpen }: { onOpen: () => void }) {
   const { account, entitlements } = useAccount();
   const isGuest = !account || account.isAnonymous;
   const isPremium = entitlements.tier === 'premium';
-  const initial = account?.email?.trim()?.[0]?.toUpperCase() ?? 'G';
+  /* A guest gets a person glyph rather than a letter: the header already
+     carries the brand, and a lone "G" in a ring reads as a broken logo. */
+  const initial = account?.email?.trim()?.[0]?.toUpperCase() ?? '';
 
   return (
     <button
       type="button"
-      className="avatar topbar__account"
+      className={`avatar topbar__account${isGuest ? ' avatar--guest' : ''}`}
       aria-label={
         isPremium
           ? 'Your account, Premium'
@@ -1216,7 +1218,7 @@ function AccountButton({ onOpen }: { onOpen: () => void }) {
       }
       onClick={onOpen}
     >
-      {isPremium ? <Sparkles size={15} /> : initial}
+      {isPremium ? <Sparkles size={15} /> : isGuest ? <CircleUser size={16} /> : initial}
     </button>
   );
 }
