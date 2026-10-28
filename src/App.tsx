@@ -95,10 +95,16 @@ function loadSession() {
   }
 }
 
+/*
+ * The header lockup: the play glyph in a violet gradient tile, beside the
+ * wordmark in the display face. It borrows the primary action's gradient and
+ * the condensed type of every heading, so the top bar reads as part of the same
+ * design as the hero and the cards instead of sitting beside them.
+ */
 function Logo() {
   return (
     <div className="logo" aria-label={site.name}>
-      <span><Play fill="currentColor" /></span>
+      <span className="logo__mark" aria-hidden="true"><Play fill="currentColor" strokeWidth={0} /></span>
       <b>{site.wordmark}</b>
     </div>
   );
