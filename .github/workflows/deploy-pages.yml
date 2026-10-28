@@ -57,36 +57,29 @@ jobs:
         id: site
         env:
           TMDB_API_KEY_SECRET: ${{ secrets.TMDB_API_KEY }}
-          # The instance's TMDB key, stored reversed so it is not plain text in
-          # the workflow. Reversed again below at build time. It is compiled
-          # into the public site's JavaScript for every visitor regardless.
-          TMDB_API_KEY_EMBEDDED_REVERSED: '2e2018696554db4e1009cce4e996d10d'
           SUPABASE_URL_VAR: ${{ vars.SUPABASE_URL }}
-          SUPABASE_URL_EMBEDDED: 'https://tsaxmnscadvibqqjzfyb.supabase.co'
           SUPABASE_PUBLISHABLE_KEY_VAR: ${{ vars.SUPABASE_PUBLISHABLE_KEY }}
-          SUPABASE_PUBLISHABLE_KEY_EMBEDDED: 'sb_publishable_wHblWBAvdXxN4Cx6PsFD_Q_Ny5HqoVH'
           PAGES_BASE_PATH: ${{ steps.pages.outputs.base_path }}
           PAGES_BASE_URL: ${{ steps.pages.outputs.base_url }}
         run: |
-          if [ -n "$TMDB_API_KEY_SECRET" ]; then
-            tmdb="$TMDB_API_KEY_SECRET"
-          else
-            tmdb=$(printf '%s' "$TMDB_API_KEY_EMBEDDED_REVERSED" | rev)
-          fi
-          echo "VITE_TMDB_API_KEY=$tmdb" >> "$GITHUB_ENV"
-          echo "VITE_SUPABASE_URL=${SUPABASE_URL_VAR:-$SUPABASE_URL_EMBEDDED}" >> "$GITHUB_ENV"
-          echo "VITE_SUPABASE_PUBLISHABLE_KEY=${SUPABASE_PUBLISHABLE_KEY_VAR:-$SUPABASE_PUBLISHABLE_KEY_EMBEDDED}" >> "$GITHUB_ENV"
+          # A fresh template carries no credentials of its own: everything comes
+          # from THIS repository's secrets and variables (the setup wizard's
+          # checklist names them). Until they are set, the build runs but the
+          # site has no backend or catalog.
+          echo "VITE_TMDB_API_KEY=$TMDB_API_KEY_SECRET" >> "$GITHUB_ENV"
+          echo "VITE_SUPABASE_URL=$SUPABASE_URL_VAR" >> "$GITHUB_ENV"
+          echo "VITE_SUPABASE_PUBLISHABLE_KEY=$SUPABASE_PUBLISHABLE_KEY_VAR" >> "$GITHUB_ENV"
 
           # configure-pages reports the base path without a trailing slash ("/repo"
           # for a project site, "" for a custom domain). Everything below needs one
           # leading and one trailing slash: "/repo/" or "/". Concatenating a slash
           # onto the reported value, as this workflow used to, produced "//repo/",
           # which the build rejects as a URL rather than a path.
-          base="${PAGES_BASE_PATH:-GlockTV-web-app}"
+          base="${PAGES_BASE_PATH:-OWNER-SITE-NAME}"
           base="/${base#/}"
           echo "base_path=${base%/}/" >> "$GITHUB_OUTPUT"
 
-          url="${PAGES_BASE_URL:-https://skullygxng.github.io/GlockTV-web-app}"
+          url="${PAGES_BASE_URL:-https://OWNER.github.io/OWNER-SITE-NAME}"
           echo "site_url=${url%/}/" >> "$GITHUB_OUTPUT"
 
       - name: Build
