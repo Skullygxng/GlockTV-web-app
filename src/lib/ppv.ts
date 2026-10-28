@@ -21,7 +21,7 @@ export type PpvStatus = 'upcoming' | 'live' | 'ended';
  * union because PpvEmbed.provider and PpvEvent.provider predate the split and
  * are read by existing callers.
  */
-export type PpvProviderId = 'streamed' | 'sportsrc' | 'thesportsdb' | 'youtube' | 'twitch';
+export type PpvProviderId = 'streamed' | 'streamfree' | 'sportsrc' | 'thesportsdb' | 'youtube' | 'twitch';
 
 export interface PpvEmbed {
   provider: PpvProviderId;

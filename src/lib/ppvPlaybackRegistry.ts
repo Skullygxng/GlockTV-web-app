@@ -46,6 +46,7 @@ function labelFor(parts: Array<string | undefined | false>): string {
 
 const PROVIDER_LABELS: Record<string, string> = {
   streamed: 'Streamed',
+  streamfree: 'StreamFree',
   sportsrc: 'SportSRC',
   youtube: 'YouTube',
   twitch: 'Twitch',

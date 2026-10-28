@@ -40,6 +40,7 @@ import {
   type PpvFetchLike,
 } from './ppvProviders';
 import { theSportsDbCatalogProvider } from './ppvTheSportsDb';
+import { streamFreeCatalogProvider } from './ppvStreamFree';
 
 const NOT_ATTEMPTED: PpvCatalogEndpointDiagnostics = {
   status: 'network_or_cors_error',
@@ -124,7 +125,7 @@ export const streamedCatalogProvider: PpvCatalogProvider = {
  */
 export const PPV_CATALOG_PROVIDERS: readonly PpvCatalogProvider[] = [
   theSportsDbCatalogProvider,
-  streamedCatalogProvider,
+  streamFreeCatalogProvider,
 ];
 
 /* --- normalized identity ------------------------------------------------ */
@@ -451,9 +452,9 @@ export async function aggregatePpvCatalog(
     stage: 'catalog' as const,
     startedAt,
     completedAt: Date.now(),
-    fight: endpointOf(providerDiagnostics, 'streamed', 'fight'),
-    live: endpointOf(providerDiagnostics, 'streamed', 'live'),
-    today: endpointOf(providerDiagnostics, 'streamed', 'today'),
+    fight: endpointOf(providerDiagnostics, 'streamfree', 'fight'),
+    live: endpointOf(providerDiagnostics, 'streamfree', 'live'),
+    today: endpointOf(providerDiagnostics, 'streamfree', 'today'),
     providers: providerDiagnostics,
     contributingProviders: contributing,
     failedProviders: failed,

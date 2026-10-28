@@ -26,8 +26,8 @@ export type PpvDiagnosticStage =
  * stream can be played, and a playback provider failing says nothing about
  * whether the event exists - so they never share an identifier space.
  */
-export type PpvCatalogProviderId = 'streamed' | 'thesportsdb';
-export type PpvPlaybackProviderId = 'streamed' | 'sportsrc' | 'youtube' | 'twitch';
+export type PpvCatalogProviderId = 'streamed' | 'thesportsdb' | 'streamfree';
+export type PpvPlaybackProviderId = 'streamed' | 'sportsrc' | 'youtube' | 'twitch' | 'streamfree';
 
 export type PpvCatalogFeed = 'fight' | 'live' | 'today';
 

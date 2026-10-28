@@ -36,7 +36,7 @@ export const PPV_IFRAME_ALLOW = 'autoplay; fullscreen; encrypted-media; picture-
  * configured. Supporting it again means adding its verified embed host here
  * and restoring a discovery path for it; nothing requests it today.
  */
-export const PPV_EMBED_HOSTS: readonly string[] = ['embed.st', 'embed.streamapi.cc'];
+export const PPV_EMBED_HOSTS: readonly string[] = ['embed.st', 'embed.streamapi.cc', 'strmfree.st'];
 
 const PRIVATE_IPV4 =
   /^(10\.|127\.|0\.|169\.254\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.)/;
