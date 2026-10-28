@@ -33,6 +33,16 @@ export interface AccountService {
    * control rather than promising a button that would throw.
    */
   signOut?(): Promise<void>;
+  /*
+   * The familiar email + password flow. Optional: a service without a session
+   * model (test stubs) leaves them out, and the account surface then offers the
+   * magic link instead of a form it could not submit.
+   */
+  signInWithPassword?(email: string, password: string): Promise<void>;
+  /* 'signed_in' when the project signs people straight in, 'confirm_email' when
+     it requires the emailed confirmation first - both are normal. */
+  signUpWithPassword?(email: string, password: string): Promise<'signed_in' | 'confirm_email'>;
+  sendPasswordReset?(email: string): Promise<void>;
   /* Fires whenever the session changes; returns an unsubscribe. */
   onAuthChange(listener: () => void): () => void;
 }
@@ -136,6 +146,34 @@ export function createAccountService(client: SupabaseClient): AccountService {
 
     async signOut() {
       await client.auth.signOut();
+    },
+
+    async signInWithPassword(email, password) {
+      const { error } = await client.auth.signInWithPassword({ email: email.trim(), password });
+      if (error) throw new Error(error.message);
+    },
+
+    async signUpWithPassword(email, password) {
+      const redirect = `${window.location.origin}${import.meta.env.BASE_URL}`;
+      /*
+       * Signing up from a guest session replaces the anonymous identity with a
+       * real account. That is deliberate: an anonymous row is not a person, and
+       * carrying its watch-party history into a new account would hand one
+       * visitor's rooms to whoever registers next on the same device.
+       */
+      const { data, error } = await client.auth.signUp({
+        email: email.trim(),
+        password,
+        options: { emailRedirectTo: redirect },
+      });
+      if (error) throw new Error(error.message);
+      return data.session ? 'signed_in' : 'confirm_email';
+    },
+
+    async sendPasswordReset(email) {
+      const redirect = `${window.location.origin}${import.meta.env.BASE_URL}`;
+      const { error } = await client.auth.resetPasswordForEmail(email.trim(), { redirectTo: redirect });
+      if (error) throw new Error(error.message);
     },
 
     onAuthChange(listener: () => void) {

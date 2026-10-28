@@ -1,5 +1,5 @@
 import { type FormEvent, useEffect, useState } from 'react';
-import { CreditCard, LifeBuoy, LoaderCircle, LogOut, Mail, Palette, ShieldCheck, Sparkles, X } from 'lucide-react';
+import { CreditCard, LifeBuoy, LoaderCircle, LogIn, LogOut, Mail, Palette, ShieldCheck, Sparkles, UserPlus, X } from 'lucide-react';
 import { useAccount } from './AccountProvider';
 import { useDialogBehavior } from '../hooks/useDialogBehavior';
 import { createDefaultBillingService, type BillingService } from '../lib/billing';
@@ -47,11 +47,13 @@ export function AccountPanel({
     account, entitlements, loading, error,
     confirmingMembership, confirmationTimedOut,
     linkEmail, sendSignInLink, canSignOut, signOut,
+    canUsePassword, signIn, signUp, sendPasswordReset,
   } = useAccount();
   const billing = providedBilling === undefined ? getDefaultBilling() : providedBilling;
   const staffService = providedStaffService === undefined ? getDefaultStaffService() : providedStaffService;
 
   const [email, setEmail] = useState(account?.email ?? '');
+  const [password, setPassword] = useState('');
   const [status, setStatus] = useState('');
   const [actionError, setActionError] = useState('');
   const [busy, setBusy] = useState(false);
@@ -223,6 +225,56 @@ export function AccountPanel({
               placeholder="you@example.com"
             />
           </label>
+          {canUsePassword && (
+            <>
+              <label>
+                Password
+                <input
+                  type="password"
+                  aria-label="Account password"
+                  value={password}
+                  minLength={8}
+                  autoComplete={isGuest ? 'new-password' : 'current-password'}
+                  onChange={(event) => { setPassword(event.target.value); setStatus(''); setActionError(''); }}
+                  placeholder="At least 8 characters"
+                />
+              </label>
+              <div className="account-panel__actions">
+                {isGuest ? (
+                  <button
+                    type="button"
+                    disabled={busy || !email.trim() || password.length < 8}
+                    onClick={() => void run(async () => {
+                      const result = await signUp(email, password);
+                      if (result === 'confirm_email') {
+                        setStatus('Check your email to confirm the account, then sign in.');
+                      }
+                    }, 'Account created. You are signed in.')}
+                  >
+                    <UserPlus /> Create account
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    disabled={busy || !email.trim() || password.length < 8}
+                    onClick={() => void run(() => signIn(email, password), 'Signed in.')}
+                  >
+                    <LogIn /> Sign in
+                  </button>
+                )}
+                <button
+                  type="button"
+                  disabled={busy || !email.trim()}
+                  onClick={() => void run(
+                    () => sendPasswordReset(email),
+                    'Password reset link sent. Open it on this device.',
+                  )}
+                >
+                  Reset password
+                </button>
+              </div>
+            </>
+          )}
           <div className="account-panel__actions">
             {isGuest && (
               <button type="submit" disabled={busy || !email.trim()}>

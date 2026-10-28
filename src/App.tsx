@@ -11,6 +11,7 @@ import { useMediaSearchSuggestions } from './hooks/useMediaSearchSuggestions';
 import { useDialogBehavior } from './hooks/useDialogBehavior';
 import { AccountPanel } from './components/AccountPanel';
 import { AdminDashboard } from './components/AdminDashboard';
+import { PremiumBanner } from './components/PremiumBanner';
 import { useLoadSiteSettings, useSiteSettings } from './lib/siteSettings';
 import { SupportPanel } from './components/SupportPanel';
 import { AddToHomeScreen } from './components/AddToHomeScreen';
@@ -1217,6 +1218,10 @@ const wheelLockedUntil = useRef(0);
       {adminOpen && (
         <AdminDashboard onClose={() => setAdminOpen(false)} />
       )}
+
+      {/* The free plan is ad-supported and the paid one is not; a visitor should
+          be able to see that without opening the account panel. */}
+      <PremiumBanner onOpenAccount={() => setAccountOpen(true)} />
 
       <AddToHomeScreen />
 
