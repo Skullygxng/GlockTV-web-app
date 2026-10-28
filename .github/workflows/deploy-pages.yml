@@ -81,7 +81,7 @@ jobs:
           # configure-pages when Pages exists; the fallbacks match
           # https://skullygxng.github.io/GlockTV-web-app/ — update them if the
           # repository is renamed or moves to a custom domain.
-          VITE_BASE_PATH: ${{ steps.pages.outputs.base_path || 'GlockTV-web-app' }}/
+          VITE_BASE_PATH: /${{ steps.pages.outputs.base_path || 'GlockTV-web-app' }}/
           VITE_SITE_URL: ${{ steps.pages.outputs.base_url || 'https://skullygxng.github.io/GlockTV-web-app' }}/
           VITE_MOVIE_EMBED_URL_TEMPLATE: 'https://www.vidcore.org/embed/movie/{tmdb_id}?autoPlay=true&theme=8B24ED&fullscreenButton=true&title=false'
           VITE_TV_EMBED_URL_TEMPLATE: 'https://www.vidcore.org/embed/tv/{tmdb_id}/{season_number}/{episode_number}?autoPlay=true&theme=8B24ED&fullscreenButton=true&title=false'
@@ -95,7 +95,7 @@ jobs:
           VITE_PARTY_BACKUP_TV_EMBED_URL_TEMPLATE: 'https://www.vidcore.org/embed/tv/{tmdb_id}/{season_number}/{episode_number}?autoPlay=true&theme=8B24ED&fullscreenButton=true&title=false'
 
       - name: Check build output
-        run: node scripts/check-build-output.mjs "${{ steps.pages.outputs.base_path || 'GlockTV-web-app' }}/"
+        run: node scripts/check-build-output.mjs "/${{ steps.pages.outputs.base_path || 'GlockTV-web-app' }}/"
 
       - name: Upload site artifact
         uses: actions/upload-pages-artifact@v4
