@@ -100,10 +100,21 @@ export function MediaCard({
   onSkip,
   trailerPlayerFactory = createYouTubePlayer,
 }: MediaCardProps) {
+  const artworkPath = item.posterPath ?? item.backdropPath;
   const artwork = imageUrl(
-    item.posterPath ?? item.backdropPath,
+    artworkPath,
     'w780',
   );
+  /*
+   * A phone does not need the 780px file. Offering the widths TMDB already has
+   * lets the browser pick one, which is most of the saving on a mobile
+   * connection for no change in layout.
+   */
+  const artworkSrcSet = artworkPath
+    ? (['w342', 'w500', 'w780', 'w1280'] as const)
+      .map((size) => `${imageUrl(artworkPath, size)} ${size.slice(1)}w`)
+      .join(', ')
+    : undefined;
 
   /*
    * Live TV opens over the feed but is mounted beside the app, not inside it,
@@ -215,6 +226,8 @@ export function MediaCard({
           <img
             className="media-card__image"
             src={artwork}
+            srcSet={artworkSrcSet}
+            sizes="100vw"
             alt=""
             fetchPriority="high"
           />

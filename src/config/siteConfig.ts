@@ -174,17 +174,57 @@ export function escapeHtml(value: string): string {
   return value.replace(/[&<>"']/g, (char) => HTML_ESCAPES[char]);
 }
 
+/* An absolute address for a public asset, or '' when the build knows no host. */
+function absoluteUrlOf(href: string, site: SiteConfig): string {
+  if (/^https:\/\//i.test(href)) return href;
+  if (!site.siteUrl) return '';
+  try {
+    return new URL(href, site.siteUrl).href;
+  } catch {
+    return '';
+  }
+}
+
+/*
+ * Social previews and the canonical address.
+ *
+ * Everything that needs an absolute URL is left out rather than emitted as a
+ * broken value: a build with no VITE_SITE_URL genuinely does not know what its
+ * public address is, and an empty og:url is worse than none.
+ */
+export function siteMetaTags(site: SiteConfig): string {
+  const image = absoluteUrlOf(site.favicon.href, site);
+  const tags = [
+    site.siteUrl ? `<link rel="canonical" href="${escapeHtml(site.siteUrl)}" />` : '',
+    '<meta property="og:type" content="website" />',
+    `<meta property="og:site_name" content="${escapeHtml(site.name)}" />`,
+    `<meta property="og:title" content="${escapeHtml(site.title)}" />`,
+    `<meta property="og:description" content="${escapeHtml(site.description)}" />`,
+    site.siteUrl ? `<meta property="og:url" content="${escapeHtml(site.siteUrl)}" />` : '',
+    image ? `<meta property="og:image" content="${escapeHtml(image)}" />` : '',
+    '<meta name="twitter:card" content="summary_large_image" />',
+    `<meta name="twitter:title" content="${escapeHtml(site.title)}" />`,
+    `<meta name="twitter:description" content="${escapeHtml(site.description)}" />`,
+    image ? `<meta name="twitter:image" content="${escapeHtml(image)}" />` : '',
+  ].filter(Boolean);
+
+  return tags.join('\n    ');
+}
+
 /*
  * Fills the %SITE_*% placeholders in index.html. Runs before Vite's own HTML
  * processing, so the default "/favicon.png" still gets the base path added.
  */
 export function renderSiteHtml(html: string, site: SiteConfig): string {
   const faviconType = site.favicon.type ? ` type="${escapeHtml(site.favicon.type)}"` : '';
+  const meta = siteMetaTags(site);
   /* Replacer functions, so a "$&" in a brand name is taken literally. */
   return html
     .replace(/%SITE_TITLE%/g, () => escapeHtml(site.title))
     .replace(/%SITE_DESCRIPTION%/g, () => escapeHtml(site.description))
     .replace(/ %SITE_FAVICON_TYPE%/g, () => faviconType)
     .replace(/%SITE_FAVICON%/g, () => escapeHtml(site.favicon.href))
-    .replace(/%SITE_NAME%/g, () => escapeHtml(site.name));
+    .replace(/%SITE_NAME%/g, () => escapeHtml(site.name))
+    /* Last, so the tags it inserts are never re-substituted. */
+    .replace(/%SITE_META%/g, () => meta);
 }

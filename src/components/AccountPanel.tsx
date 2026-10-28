@@ -4,6 +4,7 @@ import { useAccount } from './AccountProvider';
 import { useDialogBehavior } from '../hooks/useDialogBehavior';
 import { createDefaultBillingService, type BillingService } from '../lib/billing';
 import { createDefaultSupportStaffService, type SupportStaffService } from '../lib/supportStaff';
+import type { LegalPage } from './LegalPanel';
 import { site } from '../config/site';
 
 /*
@@ -30,6 +31,7 @@ export function AccountPanel({
   onClose,
   onOpenSupport,
   onOpenAdmin,
+  onOpenLegal,
   billing: providedBilling,
   staffService: providedStaffService,
 }: {
@@ -38,6 +40,8 @@ export function AccountPanel({
   onOpenSupport?: () => void;
   /* The owner's dashboard, offered only to staff. */
   onOpenAdmin?: () => void;
+  /* Privacy and terms, so they are reachable on a phone too. */
+  onOpenLegal?: (page: LegalPage) => void;
   /* Omit for the app's own billing client; pass null to run with no backend. */
   billing?: BillingService | null;
   /* Omit for the app's own check; pass null to run with no backend. */
@@ -356,7 +360,7 @@ export function AccountPanel({
           {actionError && <small className="account-panel__error" role="alert">{actionError}</small>}
         </form>
 
-        {(onOpenSupport || (onOpenAdmin && isStaff)) && (
+        {(onOpenSupport || (onOpenAdmin && isStaff) || onOpenLegal) && (
           <div className="account-panel__actions">
             {onOpenAdmin && isStaff && (
               <button type="button" onClick={onOpenAdmin}>
@@ -367,6 +371,12 @@ export function AccountPanel({
               <button type="button" onClick={onOpenSupport}>
                 <LifeBuoy /> Contact support
               </button>
+            )}
+            {onOpenLegal && (
+              <>
+                <button type="button" onClick={() => onOpenLegal('privacy')}>Privacy</button>
+                <button type="button" onClick={() => onOpenLegal('terms')}>Terms</button>
+              </>
             )}
           </div>
         )}

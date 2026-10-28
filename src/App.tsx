@@ -11,6 +11,7 @@ import { useMediaSearchSuggestions } from './hooks/useMediaSearchSuggestions';
 import { useDialogBehavior } from './hooks/useDialogBehavior';
 import { AccountPanel } from './components/AccountPanel';
 import { AdminDashboard } from './components/AdminDashboard';
+import { LegalPanel, type LegalPage } from './components/LegalPanel';
 import { PremiumBanner } from './components/PremiumBanner';
 import { useLoadSiteSettings, useSiteSettings } from './lib/siteSettings';
 import { SupportPanel } from './components/SupportPanel';
@@ -212,6 +213,8 @@ function AppShell({ client, partyService, playbackConfig, partyPlaybackConfig, b
   const [supportOpen, setSupportOpen] = useState(false);
   /* The owner's dashboard: opened from the account panel, which closes first. */
   const [adminOpen, setAdminOpen] = useState(false);
+  /* Privacy and terms, reachable from the footer and the account panel. */
+  const [legal, setLegal] = useState<LegalPage | null>(null);
 
   /* The deployment's own branding, once: name, colours, logo and ad network. */
   useLoadSiteSettings();
@@ -1223,6 +1226,7 @@ const wheelLockedUntil = useRef(0);
           onClose={() => setAccountOpen(false)}
           onOpenSupport={() => { setAccountOpen(false); setSupportOpen(true); }}
           onOpenAdmin={() => { setAccountOpen(false); setAdminOpen(true); }}
+          onOpenLegal={(page) => { setAccountOpen(false); setLegal(page); }}
           billing={billingService}
         />
       )}
@@ -1238,6 +1242,8 @@ const wheelLockedUntil = useRef(0);
         <AdminDashboard onClose={() => setAdminOpen(false)} />
       )}
 
+      {legal && <LegalPanel page={legal} onClose={() => setLegal(null)} />}
+
       {/* The free plan is ad-supported and the paid one is not; a visitor should
           be able to see that without opening the account panel. */}
       <PremiumBanner onOpenAccount={() => setAccountOpen(true)} />
@@ -1245,10 +1251,14 @@ const wheelLockedUntil = useRef(0);
       <AddToHomeScreen />
 
       <footer className="credits">
-        Movie and TV data supplied by TMDB. This product uses the TMDB API but is not
-        endorsed or certified by TMDB. Watch availability powered by JustWatch. Live TV
-        channels are indexed by IPTV-org. Fight cards and live sport come from TheSportsDB
-        and StreamFree.
+        <span>
+          Movie and TV data supplied by TMDB. This product uses the TMDB API but is not
+          endorsed or certified by TMDB. Watch availability powered by JustWatch. Live TV
+          channels are indexed by IPTV-org. Fight cards and live sport come from TheSportsDB
+          and StreamFree.
+        </span>
+        <button type="button" onClick={() => setLegal('privacy')}>Privacy</button>
+        <button type="button" onClick={() => setLegal('terms')}>Terms</button>
       </footer>
     </div>
   );
