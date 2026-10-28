@@ -45,9 +45,9 @@
 }
 
 @media (max-width: 700px) {
-  /* The details overlay is the only slot that reaches a phone, and it centres
-     rather than stretching, so a 300px creative never forces the panel wider
-     than the viewport. */
+  /* On a phone the details overlay and the in-feed slot are the surfaces that
+     reach the viewport, and both centre rather than stretching, so a 300px
+     creative never forces the panel wider than the viewport. */
   .ad-slot--details-panel {
     display: flex;
     flex-direction: column;
@@ -56,3 +56,18 @@
   }
   .ad-slot--details-panel > small { align-self: flex-start; }
 }
+
+.ad-slot--sidebar-bottom {
+  margin-top: 12px;
+}
+
+/* The in-feed slot sits under the feed content, in flow: it scrolls with the
+   page, centres so a 300px creative never widens the stage, and takes no
+   space at all when it renders nothing. */
+.ad-slot--in-feed {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin: 14px auto 20px;
+}
+.ad-slot--in-feed > small { align-self: flex-start; }

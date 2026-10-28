@@ -1,10 +1,13 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 import { useAccount } from './AccountProvider';
 import {
   AD_PLACEMENTS,
   adFrameDocument,
   parseAdConfig,
+  recordAdImpression,
+  sessionImpressionCount,
   shouldRenderAds,
+  withinFrequencyCap,
   type AdConfig,
   type AdPlacementId,
 } from '../lib/ads';
@@ -44,6 +47,14 @@ export function AdSlot({ placement, config: providedConfig }: AdSlotProps) {
   const render = shouldRenderAds({ entitlements, ready, config });
 
   /*
+   * The frequency cap is read at render and enforced from the next mount on:
+   * slots mounted in the same commit have all really been shown, so they all
+   * fit, and the ceiling bites for everything after. An unconfigured or
+   * uncapped build passes straight through.
+   */
+  const capped = config !== null && !withinFrequencyCap(config.frequency, sessionImpressionCount());
+
+  /*
    * Built only when it will be used. Composing the document for a Premium
    * member would be harmless but pointless, and keeping it inside the guard
    * makes it obvious that nothing about the ad network is touched on their
@@ -54,12 +65,18 @@ export function AdSlot({ placement, config: providedConfig }: AdSlotProps) {
     [render, config, placement],
   );
 
+  /* One impression per mounted frame, not per render. */
+  useEffect(() => {
+    if (document) recordAdImpression();
+  }, [document]);
+
   /*
    * Nothing at all rather than an empty frame. An unconfigured build, a
-   * Premium member and an account still loading all land here, and in every
-   * one of those cases a bordered placeholder would be worse than absence.
+   * Premium member, an account still loading and a visit at its impression
+   * cap all land here, and in every one of those cases a bordered placeholder
+   * would be worse than absence.
    */
-  if (!document) return null;
+  if (!document || capped) return null;
 
   const size = AD_PLACEMENTS[placement];
   return (

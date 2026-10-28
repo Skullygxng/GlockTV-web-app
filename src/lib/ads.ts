@@ -20,12 +20,17 @@ import { shouldShowAds, type Entitlements } from './account';
 
 /* Where an ad may appear. Deliberately short, and deliberately nowhere near
    the player or the navigation. */
-export type AdPlacementId = 'context-rail' | 'details-panel';
+export type AdPlacementId = 'context-rail' | 'sidebar-bottom' | 'in-feed' | 'details-panel';
 
 export const AD_PLACEMENTS: Record<AdPlacementId, { width: number; height: number; label: string }> = {
   /* The desktop context column. Already hidden below 980px by the layout, so
      this placement is desktop-only without needing to know that itself. */
   'context-rail': { width: 300, height: 250, label: 'Sponsored' },
+  /* Second unit at the foot of that same column. */
+  'sidebar-bottom': { width: 300, height: 250, label: 'Sponsored' },
+  /* Below the feed content, in flow, on both platforms: never overlays a
+     card, never sits above the navigation, and scrolls with the page. */
+  'in-feed': { width: 300, height: 250, label: 'Sponsored' },
   /* Inside the title details overlay, below the actions. Present on both
      platforms and the one surface with natural vertical room to spare. */
   'details-panel': { width: 300, height: 250, label: 'Sponsored' },
@@ -45,6 +50,9 @@ export interface AdConfig {
   /* Optional per-placement zone override, when a publisher runs one zone per
      slot rather than one for the site. */
   zones: Partial<Record<AdPlacementId, string>>;
+  /* How many ad frames one visit may load across every slot. Null (or
+     omitted) is uncapped; 0 is a legitimate ceiling meaning "none". */
+  frequency?: number | null;
 }
 
 /*
@@ -89,6 +97,16 @@ type EnvRecord = Record<string, string | undefined>;
  * no placeholders and no empty boxes. Development and CI run this way, and so
  * does production until somebody sets the values.
  */
+/* The per-visit impression ceiling, if the deployment sets one. A plain
+   non-negative integer, or nothing: anything else is uncapped rather than
+   half-parsed, because a silently wrong cap would either drown a session or
+   switch ads off without anyone knowing why. */
+export function parseAdFrequency(raw: string | undefined): number | null {
+  const value = raw?.trim();
+  if (!value || !/^\d+$/.test(value)) return null;
+  return Number(value);
+}
+
 export function parseAdConfig(env: EnvRecord): AdConfig | null {
   const scriptUrl = env.VITE_ADS_SCRIPT_URL?.trim();
   if (!scriptUrl || !isAllowedAdScriptUrl(scriptUrl)) return null;
@@ -96,6 +114,8 @@ export function parseAdConfig(env: EnvRecord): AdConfig | null {
   const zones: Partial<Record<AdPlacementId, string>> = {};
   const candidates: Array<[AdPlacementId, string | undefined]> = [
     ['context-rail', env.VITE_ADS_ZONE_CONTEXT_RAIL],
+    ['sidebar-bottom', env.VITE_ADS_ZONE_SIDEBAR_BOTTOM],
+    ['in-feed', env.VITE_ADS_ZONE_IN_FEED],
     ['details-panel', env.VITE_ADS_ZONE_DETAILS_PANEL],
   ];
   for (const [placement, raw] of candidates) {
@@ -103,7 +123,39 @@ export function parseAdConfig(env: EnvRecord): AdConfig | null {
     if (zone && isAllowedZoneId(zone)) zones[placement] = zone;
   }
 
-  return { provider: 'hilltopads', scriptUrl, zones };
+  return { provider: 'hilltopads', scriptUrl, zones, frequency: parseAdFrequency(env.VITE_ADS_MAX_PER_SESSION) };
+}
+
+/*
+ * The per-visit impression ledger behind the frequency cap.
+ *
+ * sessionStorage because a cap is about this visit, not the person: a new tab
+ * starts fresh, nothing identifying is stored - only a count - and every
+ * access is guarded so a storage-less environment degrades to uncapped rather
+ * than throwing. Reading happens where the render decision is made, writing
+ * happens once per mounted frame.
+ */
+const IMPRESSION_KEY = 'glocktv-ad-impressions';
+
+export function sessionImpressionCount(): number {
+  try {
+    return Number(sessionStorage.getItem(IMPRESSION_KEY) ?? '0') || 0;
+  } catch {
+    return 0;
+  }
+}
+
+export function recordAdImpression(): void {
+  try {
+    sessionStorage.setItem(IMPRESSION_KEY, String(sessionImpressionCount() + 1));
+  } catch {
+    /* Storage unavailable: the cap simply does not accumulate. */
+  }
+}
+
+export function withinFrequencyCap(cap: number | null | undefined, impressions: number): boolean {
+  if (cap == null) return true;
+  return impressions < cap;
 }
 
 /*

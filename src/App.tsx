@@ -1033,6 +1033,12 @@ const wheelLockedUntil = useRef(0);
               )
             )}
 
+            {/* Below the feed content, in flow: it scrolls with the page and
+                never overlays a card. The friends stage carries no slot. */}
+            {!!currentItems.length && view !== 'friends' && (
+              <AdSlot placement="in-feed" />
+            )}
+
             {!!currentItems.length && (
               <div className="feed-pagination">
                 <button aria-label="Previous title" onClick={() => move(-1)}><ChevronUp /></button>
@@ -1100,9 +1106,11 @@ const wheelLockedUntil = useRef(0);
           </button>
         </section>
 
-        {/* Last in the column, so nothing about the product moves to make room
-            for it and a Premium member's layout is identical without it. */}
+        {/* At the foot of the column, so nothing about the product moves to
+            make room for it and a Premium member's layout is identical
+            without it. Two units fill the column's natural end. */}
         <AdSlot placement="context-rail" />
+        <AdSlot placement="sidebar-bottom" />
       </aside>
 
       <nav className="bottom-nav" aria-label="Mobile navigation">

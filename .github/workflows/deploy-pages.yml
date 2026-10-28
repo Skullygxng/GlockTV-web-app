@@ -98,6 +98,15 @@ jobs:
           # repository is renamed or moves to a custom domain.
           VITE_BASE_PATH: ${{ steps.site.outputs.base_path }}
           VITE_SITE_URL: ${{ steps.site.outputs.site_url }}
+          # Ads are optional and blank by default: empty values mean an
+          # unconfigured build, which renders no slot at all. Plug a network in
+          # by setting these repository variables (see README, plug-in guide).
+          VITE_ADS_SCRIPT_URL: ${{ vars.ADS_SCRIPT_URL }}
+          VITE_ADS_ZONE_CONTEXT_RAIL: ${{ vars.ADS_ZONE_CONTEXT_RAIL }}
+          VITE_ADS_ZONE_SIDEBAR_BOTTOM: ${{ vars.ADS_ZONE_SIDEBAR_BOTTOM }}
+          VITE_ADS_ZONE_IN_FEED: ${{ vars.ADS_ZONE_IN_FEED }}
+          VITE_ADS_ZONE_DETAILS_PANEL: ${{ vars.ADS_ZONE_DETAILS_PANEL }}
+          VITE_ADS_MAX_PER_SESSION: ${{ vars.ADS_MAX_PER_SESSION }}
           VITE_MOVIE_EMBED_URL_TEMPLATE: 'https://www.vidcore.org/embed/movie/{tmdb_id}?autoPlay=true&theme=8B24ED&fullscreenButton=true&title=false'
           VITE_TV_EMBED_URL_TEMPLATE: 'https://www.vidcore.org/embed/tv/{tmdb_id}/{season_number}/{episode_number}?autoPlay=true&theme=8B24ED&fullscreenButton=true&title=false'
           VITE_BACKUP_MOVIE_EMBED_URL_TEMPLATE: 'https://vidzen.fun/movie/{tmdb_id}'

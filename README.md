@@ -33,6 +33,25 @@ Optional overrides, when you want them:
 These override the embedded defaults when set. Optional branding, base path,
 embed-provider and ads overrides mirror the main repository's `.env.example`.
 
+## Plug-in guide
+
+Every optional integration ships blank. Filling in a repository variable
+(Settings → Secrets and variables → Actions → Variables) activates it; leaving
+it blank ships a build without it — an unconfigured ad slot renders nothing at
+all, never an empty box.
+
+| Feature | Repository variable(s) | Notes |
+| --- | --- | --- |
+| Ad network | `ADS_SCRIPT_URL` + one `ADS_ZONE_*` per slot | Script URL from your publisher dashboard (must be https); zone ids optional, one per placement. |
+| Ad frequency | `ADS_MAX_PER_SESSION` | How many ad frames one visit may load, across every slot. Blank = uncapped. |
+| Supabase backend | `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY` | Embedded defaults already point at the main instance. |
+| TMDB | secret `TMDB_API_KEY` | Embedded default already present. |
+| Playback embeds | `MOVIE_EMBED_URL_TEMPLATE`, `TV_EMBED_URL_TEMPLATE`, backups, party | See the deploy workflow; each new embed host is also allowlisted in `src/lib/ppvEmbedPolicy.ts`. |
+
+Rebranding is a checklist, not a code change: see [REBRAND.md](REBRAND.md).
+Accounts, billing (Stripe), crypto payments and the staff support console are
+configured in the private main repository.
+
 ## Operations
 
 - **Deploying.** Every push to `main` builds and publishes through
