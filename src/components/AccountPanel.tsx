@@ -54,6 +54,12 @@ export function AccountPanel({
 
   const [email, setEmail] = useState(account?.email ?? '');
   const [password, setPassword] = useState('');
+  /*
+   * A guest meets one identity action at a time: create an account, or sign
+   * in. Both use the same two fields, so the mode only decides which button
+   * the form offers.
+   */
+  const [mode, setMode] = useState<'create' | 'signin'>('create');
   const [status, setStatus] = useState('');
   const [actionError, setActionError] = useState('');
   const [busy, setBusy] = useState(false);
@@ -80,7 +86,8 @@ export function AccountPanel({
     setBusy(true); setStatus(''); setActionError('');
     try {
       await action();
-      setStatus(done);
+      /* An action may have set its own message; '' leaves it standing. */
+      if (done) setStatus(done);
     } catch (reason) {
       setActionError(reason instanceof Error ? reason.message : 'That did not work. Try again.');
     } finally {
@@ -88,9 +95,28 @@ export function AccountPanel({
     }
   };
 
-  const protectAccount = (event: FormEvent) => {
-    event.preventDefault();
+  const protectAccount = () => {
     void run(() => linkEmail(email), 'Check your email to finish protecting this account.');
+  };
+
+  /*
+   * Password sign-up and sign-in share one form: the same two fields, and one
+   * button whose label says which of the two is about to happen. A returning
+   * member arriving in a fresh browser is a guest here, so a panel that only
+   * ever offered "Create account" had no way back in.
+   */
+  const applyPassword = () => {
+    if (!canUsePassword) return;
+    if (mode === 'signin') {
+      void run(() => signIn(email, password), 'Signed in.');
+      return;
+    }
+    void run(async () => {
+      const result = await signUp(email, password);
+      setStatus(result === 'confirm_email'
+        ? 'Check your email to confirm the account, then sign in.'
+        : 'Account created. You are signed in.');
+    }, '');
   };
 
   /*
@@ -209,11 +235,18 @@ export function AccountPanel({
           {billingError && <small className="account-panel__error" role="alert">{billingError}</small>}
         </section>
 
-        <form onSubmit={protectAccount}>
+        <form
+          onSubmit={(event: FormEvent<HTMLFormElement>) => {
+            event.preventDefault();
+            /* Enter follows whichever identity action the form presents. */
+            if (isGuest && canUsePassword) applyPassword();
+            else protectAccount();
+          }}
+        >
           <p>
             {isGuest
-              ? 'Add an email to keep this identity across devices. Your rooms, hosting and history stay with you.'
-              : 'Need to sign in somewhere else? Send yourself a link.'}
+              ? 'Create an account or sign in with your email and password. Your rooms, hosting and history follow you across devices.'
+              : 'Need to sign in somewhere else? Send yourself a link, or switch account with your password.'}
           </p>
           <label>
             Account email
@@ -234,7 +267,7 @@ export function AccountPanel({
                   aria-label="Account password"
                   value={password}
                   minLength={8}
-                  autoComplete={isGuest ? 'new-password' : 'current-password'}
+                  autoComplete={isGuest && mode === 'create' ? 'new-password' : 'current-password'}
                   onChange={(event) => { setPassword(event.target.value); setStatus(''); setActionError(''); }}
                   placeholder="At least 8 characters"
                 />
@@ -244,14 +277,9 @@ export function AccountPanel({
                   <button
                     type="button"
                     disabled={busy || !email.trim() || password.length < 8}
-                    onClick={() => void run(async () => {
-                      const result = await signUp(email, password);
-                      if (result === 'confirm_email') {
-                        setStatus('Check your email to confirm the account, then sign in.');
-                      }
-                    }, 'Account created. You are signed in.')}
+                    onClick={applyPassword}
                   >
-                    <UserPlus /> Create account
+                    {mode === 'create' ? <><UserPlus /> Create account</> : <><LogIn /> Sign in</>}
                   </button>
                 ) : (
                   <button
@@ -262,22 +290,41 @@ export function AccountPanel({
                     <LogIn /> Sign in
                   </button>
                 )}
+                {(!isGuest || mode === 'signin') && (
+                  <button
+                    type="button"
+                    disabled={busy || !email.trim()}
+                    onClick={() => void run(
+                      () => sendPasswordReset(email),
+                      'Password reset link sent. Open it on this device.',
+                    )}
+                  >
+                    Forgot password?
+                  </button>
+                )}
+              </div>
+              {isGuest && (
                 <button
                   type="button"
-                  disabled={busy || !email.trim()}
-                  onClick={() => void run(
-                    () => sendPasswordReset(email),
-                    'Password reset link sent. Open it on this device.',
-                  )}
+                  className="account-panel__switch"
+                  onClick={() => {
+                    setMode(mode === 'create' ? 'signin' : 'create');
+                    setStatus('');
+                    setActionError('');
+                  }}
                 >
-                  Reset password
+                  {mode === 'create'
+                    ? 'Already have an account? Sign in'
+                    : 'New here? Create an account'}
                 </button>
-              </div>
+              )}
             </>
           )}
           <div className="account-panel__actions">
             {isGuest && (
-              <button type="submit" disabled={busy || !email.trim()}>
+              /* Attaches the email to the anonymous account this browser is
+                 already using, so its rooms and history come along. */
+              <button type="button" disabled={busy || !email.trim()} onClick={protectAccount}>
                 <ShieldCheck /> Protect guest account
               </button>
             )}

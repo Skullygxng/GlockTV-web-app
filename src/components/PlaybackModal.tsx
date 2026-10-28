@@ -631,10 +631,10 @@ export function PlaybackModal({
       </p>}
       <footer className="playback-modal__footer">
         <div><span>{item.mediaType === 'movie' ? 'Feature presentation' : 'Episode playback'}</span><h2>{item.title}</h2><strong>{item.year} - {item.genres.slice(0, 2).join(' - ') || (item.mediaType === 'movie' ? 'Movie' : 'Series')}</strong>{item.overview?.trim() && <p className="playback-overview">{item.overview.trim()}</p>}</div>
-        <small><ShieldCheck /> Pop-up windows are blocked. Ads drawn inside a third-party player cannot be removed by {site.name}.</small>
+        <small><ShieldCheck /> Plays in the provider's own player. The ads shown there are set by the provider, not by {site.name}.</small>
       </footer>
       {item.mediaType === 'tv' && <EpisodeBrowser client={client} seriesId={item.id} activeSeason={season} activeEpisode={episode} onSelect={selectEpisode} />}
-      {!!recommendations.length && <section className="playback-recommendations" aria-label="More like this"><header><span>Keep watching</span><h3>More like this</h3></header><div>{recommendations.slice(0, 6).map((recommendation) => <button type="button" key={`${recommendation.mediaType}-${recommendation.id}`} onClick={() => onSelect?.(recommendation)}>{imageUrl(recommendation.backdropPath ?? recommendation.posterPath, 'w500') ? <img loading="lazy" decoding="async" src={imageUrl(recommendation.backdropPath ?? recommendation.posterPath, 'w500')!} alt="" /> : <span className="playback-recommendations__fallback"><Film /></span>}<strong>{recommendation.title}</strong><small>{recommendation.year} - Rating {recommendation.rating.toFixed(1)}</small></button>)}</div></section>}
+      {!!recommendations.length && <section className="playback-recommendations" aria-label="More like this"><header><h3>More like this</h3></header><div>{recommendations.slice(0, 6).map((recommendation) => <button type="button" key={`${recommendation.mediaType}-${recommendation.id}`} onClick={() => onSelect?.(recommendation)}>{imageUrl(recommendation.backdropPath ?? recommendation.posterPath, 'w500') ? <img loading="lazy" decoding="async" src={imageUrl(recommendation.backdropPath ?? recommendation.posterPath, 'w500')!} alt="" /> : <span className="playback-recommendations__fallback"><Film /></span>}<strong>{recommendation.title}</strong><small>{recommendation.year} - Rating {recommendation.rating.toFixed(1)}</small></button>)}</div></section>}
     </motion.section>
   </motion.div>;
 }

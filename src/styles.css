@@ -49,6 +49,8 @@ html{scrollbar-width:none}html::-webkit-scrollbar{display:none}
 .account-panel__actions button svg{width:14px}
 .account-panel form small{color:#817a89;font-size:10px}
 .account-panel__error{color:#e78ba0!important}
+.account-panel__switch{justify-self:start;padding:0;border:0;background:none;color:#b98fd0;font-size:10px;text-decoration:underline;cursor:pointer}
+.media-card__votes{margin-left:6px;color:#938fa0;font-size:11px;font-weight:500;letter-spacing:.01em}
 .topbar__account{width:30px;height:30px;padding:0;border:2px solid var(--purple);border-radius:50%;background:transparent;color:#fff;display:grid;place-items:center;font-size:12px;font-weight:700}
 @media (max-width:700px){.account-panel{max-height:88svh}}
 .account-premium{margin:0 0 18px;padding:14px;border:1px solid #4d3160;border-radius:12px;background:linear-gradient(135deg,rgba(123,31,195,.13),transparent 58%),#0d0b10;display:grid;gap:11px}

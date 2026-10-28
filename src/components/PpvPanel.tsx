@@ -160,6 +160,17 @@ export function PpvPanel({
       });
   }, [catalog, filter, now, query]);
 
+  /*
+   * A selection the current filter or search no longer lists is not something
+   * the viewer can see, so the player must not keep showing it - the same rule
+   * the channel browser already follows.
+   */
+  useEffect(() => {
+    if (!selectedId) return;
+    if (events.some(({ event }) => event.providerEventId === selectedId)) return;
+    setSelectedId('');
+  }, [events, selectedId]);
+
   const selected =
     selectedId && catalog
       ? (catalog.events.find((event) => event.providerEventId === selectedId) ?? null)

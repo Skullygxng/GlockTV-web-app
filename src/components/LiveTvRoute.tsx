@@ -270,7 +270,7 @@ export function LiveTvRoute({
             </div>
 
             <div className="live-tv-count">
-              <strong>{filtered.length}</strong> channels
+              <strong>{filtered.length.toLocaleString()}</strong> channels
               {filtered.length > 0 && (
                 <span className="live-tv-count__visible">
                   {' '}
