@@ -11,6 +11,7 @@ import { useMediaSearchSuggestions } from './hooks/useMediaSearchSuggestions';
 import { useDialogBehavior } from './hooks/useDialogBehavior';
 import { AccountPanel } from './components/AccountPanel';
 import { SupportPanel } from './components/SupportPanel';
+import { AddToHomeScreen } from './components/AddToHomeScreen';
 import { AccountProvider, useAccount } from './components/AccountProvider';
 import { AdSlot } from './components/AdSlot';
 import { WatchProgressProvider } from './components/WatchProgressProvider';
@@ -1195,6 +1196,8 @@ const wheelLockedUntil = useRef(0);
           service={supportService}
         />
       )}
+
+      <AddToHomeScreen />
 
       <footer className="credits">
         Movie and TV data supplied by TMDB. This product uses the TMDB API but is not endorsed or certified by TMDB. Watch availability powered by JustWatch.

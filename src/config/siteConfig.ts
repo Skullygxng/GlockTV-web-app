@@ -185,5 +185,6 @@ export function renderSiteHtml(html: string, site: SiteConfig): string {
     .replace(/%SITE_TITLE%/g, () => escapeHtml(site.title))
     .replace(/%SITE_DESCRIPTION%/g, () => escapeHtml(site.description))
     .replace(/ %SITE_FAVICON_TYPE%/g, () => faviconType)
-    .replace(/%SITE_FAVICON%/g, () => escapeHtml(site.favicon.href));
+    .replace(/%SITE_FAVICON%/g, () => escapeHtml(site.favicon.href))
+    .replace(/%SITE_NAME%/g, () => escapeHtml(site.name));
 }

@@ -9,6 +9,13 @@
     <!-- The home-screen icon on iOS, which ignores the SVG favicon and would
          otherwise draw a placeholder from the site's first letter. -->
     <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+    <meta name="apple-mobile-web-app-title" content="%SITE_NAME%" />
+    <!-- Launched from the home screen, the app opens without browser chrome.
+         External links and the billing redirect still leave for Safari. -->
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black" />
+    <link rel="manifest" href="manifest.webmanifest" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link rel="dns-prefetch" href="https://www.vidcore.org" />
