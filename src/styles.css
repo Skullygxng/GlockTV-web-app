@@ -84,3 +84,13 @@ html{scrollbar-width:none}html::-webkit-scrollbar{display:none}
    person glyph instead; a signed-in member keeps their own initial. */
 .avatar--guest{background:linear-gradient(140deg,rgba(112,19,237,.62),rgba(147,31,255,.26));border-color:rgba(159,55,255,.9)}
 .avatar svg{width:16px;height:16px}
+
+
+/* The phone bar has no room for the wordmark, so it carries the mark alone; the
+   auto margins keep the filter pills centred between it and the account chip.
+   It steps aside on the narrowest screens, where the row is already full. */
+@media(max-width:700px){
+.mobile-brand{flex:0 0 auto;width:28px;height:28px;margin-right:auto;border-radius:9px;display:grid;place-items:center;color:#fff;background:linear-gradient(140deg,#7013ed,#931fff);box-shadow:0 4px 12px rgba(107,17,221,.4)}
+.mobile-brand svg{width:13px;height:13px;transform:translateX(1px)}
+}
+@media(max-width:360px){.mobile-brand{display:none}}

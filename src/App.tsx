@@ -895,6 +895,11 @@ const wheelLockedUntil = useRef(0);
                 </form>
               ) : (
                 <>
+                  {/* The lockup is desktop-only, so the phone bar carries the
+                      mark alone, ahead of the filters. */}
+                  <span className="mobile-brand" aria-hidden="true">
+                    <Play fill="currentColor" strokeWidth={0} />
+                  </span>
                   {(['both', 'movies', 'tv'] as const).map((type) => (
                     <button
                       key={type}
