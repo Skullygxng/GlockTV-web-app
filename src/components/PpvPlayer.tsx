@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ExternalLink, LoaderCircle, Radio, RotateCw, SkipForward, Tv } from 'lucide-react';
+import { ExternalLink, LoaderCircle, PictureInPicture2, Radio, RotateCw, SkipForward, Tv } from 'lucide-react';
 import type { PpvEmbed, PpvEvent, PpvPlaybackSource } from '../lib/ppv';
 import { formatPpvStart, loadPpvEmbeds } from '../lib/ppv';
 import { discoverPpvEmbeds } from '../lib/ppv';
@@ -24,6 +24,7 @@ import {
   PPV_IFRAME_SANDBOX,
 } from '../lib/ppvEmbedPolicy';
 import { mergePpvPlaybackSources } from '../lib/ppvProviders';
+import { isHomeScreenApp } from '../lib/liveTvLink';
 import {
   ppvEmbedToPlaybackSource,
   resolvePpvPlayback,
@@ -334,6 +335,12 @@ export function PpvPlayer({
 
   const retrySources = () => runLoad(eventRef.current);
 
+  /* PPV plays in the provider's own embed, so unlike the live channel player we
+     never trigger PiP ourselves — but the home-screen app can still hand the
+     whole event off to Safari, where the embed's own PiP control works. */
+  const homeScreenApp = isHomeScreenApp();
+  const handOffToSafari = () => window.open(window.location.href, '_blank');
+
   const idleTitle = loading
     ? 'Loading hosted embed'
     : exhausted
@@ -437,6 +444,17 @@ export function PpvPlayer({
           </p>
         </div>
         <div className="ppv-player__actions">
+          {homeScreenApp && (
+            <button
+              type="button"
+              onClick={handOffToSafari}
+              aria-label="Open this event in Safari for Picture-in-Picture"
+              title="Picture-in-Picture lives in Safari: one tap hands this event over and Safari's own PiP takes over"
+            >
+              <PictureInPicture2 />
+              PiP
+            </button>
+          )}
           {sources.length > 1 && (
             <button type="button" onClick={nextSource} aria-label="Next PPV source">
               <SkipForward />

@@ -48,12 +48,15 @@ export function LiveTvRoute({
   const [selectedId, setSelectedId] = useState('');
   const [favorites, setFavorites] = useState<string[]>(readFavorites);
   const [visibleCount, setVisibleCount] = useState(BATCH_SIZE);
-  const [pane, setPane] = useState<'channels' | 'ppv'>('channels');
+  /* A deep link that names a PPV event opens the stage on that pane. */
+  const [pane, setPane] = useState<'channels' | 'ppv'>(() =>
+    readLiveTvDeepLink().ppvEventId ? 'ppv' : 'channels');
   const [ppvWatching, setPpvWatching] = useState(false);
   const listRef = useRef<HTMLDivElement>(null);
   /* The channel id a deep link (?live=1&channel=<id>) asked for. Consumed once
      the catalog lands, then cleared so later refreshes behave like a fresh open. */
   const deepLinkedChannelRef = useRef(readLiveTvDeepLink().channelId);
+  const deepLinkedPpvRef = useRef(readLiveTvDeepLink().ppvEventId);
 
   const refresh = useCallback(
     (force = false) => {
@@ -149,8 +152,14 @@ export function LiveTvRoute({
    */
   useEffect(() => {
     if (deepLinkedChannelRef.current) return;
-    writeLiveTvLink({ open: true, channelId: selectedId });
+    writeLiveTvLink({ open: true, channelId: selectedId, ppvEventId: '' });
   }, [selectedId]);
+
+  /* Once the PPV pane has mounted and taken the deep-linked event, drop it so
+     a later remount of the panel cannot resurrect an event the viewer replaced. */
+  useEffect(() => {
+    if (pane === 'ppv' && deepLinkedPpvRef.current) deepLinkedPpvRef.current = '';
+  }, [pane]);
 
   const selected =
     selectedId && catalog
@@ -225,7 +234,7 @@ export function LiveTvRoute({
       </div>
 
       {pane === 'ppv' ? (
-        <PpvPanel loadCatalog={loadPpvCatalog} onWatchingChange={setPpvWatching} />
+        <PpvPanel loadCatalog={loadPpvCatalog} onWatchingChange={setPpvWatching} initialEventId={deepLinkedPpvRef.current} />
       ) : loading ? (
         <div className="live-tv-state">
           <LoaderCircle className="spin" />

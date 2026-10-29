@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { AlertTriangle, LoaderCircle, PictureInPicture2, Radio, RotateCw, SkipForward, Play } from 'lucide-react';
 import type { LiveChannel } from '../lib/iptvOrg';
+import { isHomeScreenApp } from '../lib/liveTvLink';
 
 const HLS_MODULE_URL = 'https://cdn.jsdelivr.net/npm/hls.js@1.6.13/+esm';
 
@@ -45,10 +46,6 @@ type PresentationModeVideo = HTMLVideoElement & {
   webkitSupportsPresentationMode?: (mode: string) => boolean;
   webkitSetPresentationMode?: (mode: string) => void;
 };
-
-function isHomeScreenApp(): boolean {
-  return (navigator as Navigator & { standalone?: boolean }).standalone === true;
-}
 
 function supportsPictureInPicture(element: HTMLVideoElement): boolean {
   const probe = element as PresentationModeVideo;

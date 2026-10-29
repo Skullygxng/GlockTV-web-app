@@ -31,6 +31,7 @@ import { imageUrl, scoreMatch, type MediaItem } from './lib/media';
 import { useWatchProgress } from './components/WatchProgressProvider';
 import { entryToMediaItem, type ProgressEntry } from './lib/watchProgress';
 import { getPlaybackConfig, type PlaybackConfig } from './lib/playback';
+import { readPlaybackDeepLink, writePlaybackLink, clearPlaybackLink } from './lib/playbackLink';
 import {
   initialSessionState,
   mediaKey,
@@ -188,11 +189,42 @@ function AppShell({ client, partyService, playbackConfig, partyPlaybackConfig, b
   const [playbackStart, setPlaybackStart] = useState<{ season: number; episode: number } | null>(null);
 
   const openPlayback = useCallback((item: MediaItem, entry?: ProgressEntry | null) => {
-    setPlaybackStart(entry && entry.mediaType === 'tv'
+    const start = entry && entry.mediaType === 'tv'
       ? { season: entry.seasonNumber, episode: entry.episodeNumber }
-      : null);
+      : null;
+    setPlaybackStart(start);
     setPlaybackItem(item);
+    /* The address carries the title so the home-screen app's one-tap PiP
+       hand-off lands in Safari on the same title, season and episode. */
+    writePlaybackLink({
+      type: item.mediaType,
+      id: item.id,
+      season: start?.season,
+      episode: start?.episode,
+    });
   }, []);
+
+  /*
+   * A deep link (?watch=movie&title=<tmdb id>...) from the home-screen app's
+   * PiP hand-off reopens the player on the same title in Safari. Resolved
+   * against TMDB once at startup; a link for a title that no longer resolves
+   * is simply ignored.
+   */
+  useEffect(() => {
+    const deep = readPlaybackDeepLink();
+    if (!deep) return;
+    const request = api.getPreviewContext?.({ id: deep.id, mediaType: deep.type });
+    if (!request) return;
+    let cancelled = false;
+    request
+      .then((result) => {
+        if (cancelled) return;
+        setPlaybackStart(deep.season && deep.episode ? { season: deep.season, episode: deep.episode } : null);
+        setPlaybackItem(result.details);
+      })
+      .catch(() => undefined);
+    return () => { cancelled = true; };
+  }, [api]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   /*
@@ -1214,7 +1246,7 @@ const wheelLockedUntil = useRef(0);
             initialEpisode={playbackStart?.episode}
             config={playback}
             client={api}
-            onClose={() => { setPlaybackItem(null); setPlaybackStart(null); }}
+            onClose={() => { setPlaybackItem(null); setPlaybackStart(null); clearPlaybackLink(); }}
             /* A recommendation is a different title, so it starts fresh. */
             onSelect={(next) => openPlayback(next)}
           />
