@@ -5,6 +5,7 @@ import { useDialogBehavior } from '../hooks/useDialogBehavior';
 import { createDefaultBillingService, type BillingService } from '../lib/billing';
 import { createDefaultSupportStaffService, type SupportStaffService } from '../lib/supportStaff';
 import type { LegalPage } from './LegalPanel';
+import { authErrorMessage } from '../lib/authErrors';
 import { site } from '../config/site';
 
 /*
@@ -93,7 +94,7 @@ export function AccountPanel({
       /* An action may have set its own message; '' leaves it standing. */
       if (done) setStatus(done);
     } catch (reason) {
-      setActionError(reason instanceof Error ? reason.message : 'That did not work. Try again.');
+      setActionError(authErrorMessage(reason));
     } finally {
       setBusy(false);
     }
@@ -348,7 +349,7 @@ export function AccountPanel({
                 onClick={() => {
                   setBusy(true); setStatus(''); setActionError('');
                   void signOut().then(() => setStatus('Signed out on this device.'))
-                    .catch((reason: unknown) => setActionError(reason instanceof Error ? reason.message : 'That did not work. Try again.'))
+                    .catch((reason: unknown) => setActionError(authErrorMessage(reason)))
                     .finally(() => setBusy(false));
                 }}
               >
