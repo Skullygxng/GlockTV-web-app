@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Radio } from 'lucide-react';
 import { LiveTvRoute } from './LiveTvRoute';
+import { readLiveTvDeepLink, writeLiveTvLink } from '../lib/liveTvLink';
 
 function findNavs() {
   return {
@@ -11,7 +12,9 @@ function findNavs() {
 }
 
 export function LiveTvIntegration() {
-  const [open, setOpen] = useState(false);
+  /* A deep link (?live=1) opens the stage directly, so the Safari hand-off
+     from the player lands back on Live TV instead of the site's front page. */
+  const [open, setOpen] = useState(() => readLiveTvDeepLink().open);
   const [desktopNav, setDesktopNav] = useState<Element | null>(null);
   const [mobileNav, setMobileNav] = useState<Element | null>(null);
 
@@ -43,6 +46,12 @@ export function LiveTvIntegration() {
   useEffect(() => {
     document.body.classList.toggle('live-tv-open', open);
     return () => document.body.classList.remove('live-tv-open');
+  }, [open]);
+
+  useEffect(() => {
+    /* Keep the address in step with the stage. When the deep link already
+       matches, this leaves its channel parameter untouched. */
+    if (readLiveTvDeepLink().open !== open) writeLiveTvLink({ open, channelId: '' });
   }, [open]);
 
   useEffect(() => {

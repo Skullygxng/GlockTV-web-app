@@ -12,6 +12,7 @@ import { LiveTvPlayer } from './LiveTvPlayer';
 import { PpvPanel } from './PpvPanel';
 import '../live-tv.css';
 import { site } from '../config/site';
+import { readLiveTvDeepLink, writeLiveTvLink } from '../lib/liveTvLink';
 
 const FAVORITES_KEY = 'glocktv:live-favorites:v1';
 const BATCH_SIZE = 50;
@@ -50,6 +51,9 @@ export function LiveTvRoute({
   const [pane, setPane] = useState<'channels' | 'ppv'>('channels');
   const [ppvWatching, setPpvWatching] = useState(false);
   const listRef = useRef<HTMLDivElement>(null);
+  /* The channel id a deep link (?live=1&channel=<id>) asked for. Consumed once
+     the catalog lands, then cleared so later refreshes behave like a fresh open. */
+  const deepLinkedChannelRef = useRef(readLiveTvDeepLink().channelId);
 
   const refresh = useCallback(
     (force = false) => {
@@ -59,7 +63,11 @@ export function LiveTvRoute({
       void loadCatalog()
         .then((result) => {
           setCatalog(result);
-          setSelectedId('');
+          const deepLinked = deepLinkedChannelRef.current;
+          deepLinkedChannelRef.current = '';
+          setSelectedId(
+            deepLinked && result.channels.some((channel) => channel.id === deepLinked) ? deepLinked : '',
+          );
           setVisibleCount(BATCH_SIZE);
         })
         .catch((reason) =>
@@ -132,6 +140,17 @@ export function LiveTvRoute({
       setSelectedId('');
     }
   }, [filtered, selectedId]);
+
+  /*
+   * The address bar carries the selection so "Open in Safari" from the player
+   * hands off to the same channel. Held back while a deep link is still
+   * pending: at first render the selection is empty, and writing then would
+   * wipe the parameter before the catalog has a chance to apply it.
+   */
+  useEffect(() => {
+    if (deepLinkedChannelRef.current) return;
+    writeLiveTvLink({ open: true, channelId: selectedId });
+  }, [selectedId]);
 
   const selected =
     selectedId && catalog
