@@ -210,14 +210,6 @@ body.live-tv-open .notice{display:none!important}
   color:#fff;
 }
 .live-player__pip>button svg{width:13px}
-.live-player__pip-note{
-  display:grid;
-  gap:6px;
-  justify-items:end;
-  max-width:250px;
-  text-align:right;
-}
-.live-player__pip-note small{color:#8a8492;font-size:8px;line-height:1.5}
 
 .live-badge{
   display:flex;

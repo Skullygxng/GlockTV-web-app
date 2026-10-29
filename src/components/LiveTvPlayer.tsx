@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { AlertTriangle, ExternalLink, LoaderCircle, PictureInPicture2, Radio, RotateCw, SkipForward, Play } from 'lucide-react';
+import { AlertTriangle, LoaderCircle, PictureInPicture2, Radio, RotateCw, SkipForward, Play } from 'lucide-react';
 import type { LiveChannel } from '../lib/iptvOrg';
 
 const HLS_MODULE_URL = 'https://cdn.jsdelivr.net/npm/hls.js@1.6.13/+esm';
@@ -269,9 +269,8 @@ export function LiveTvPlayer({ channel }: LiveTvPlayerProps) {
   };
 
   const openInSafari = () => {
-    /* From the home-screen app this hands the address to Safari, where PiP
-       actually works. It cannot carry the channel across, since Live TV is an
-       overlay with no URL state. */
+    /* One tap in the home-screen app: the stage's deep link (?live=1&channel=<id>)
+       rides along, so Safari lands on the same channel with its own PiP ready. */
     window.open(window.location.href, '_blank');
   };
 
@@ -336,12 +335,14 @@ export function LiveTvPlayer({ channel }: LiveTvPlayerProps) {
                 <PictureInPicture2 /> {pipActive ? 'Exit PiP' : 'PiP'}
               </button>
             ) : (
-              <div className="live-player__pip-note" role="note">
-                <small>Picture-in-Picture works in Safari only — iOS blocks it inside a home-screen app.</small>
-                <button type="button" onClick={openInSafari}>
-                  <ExternalLink /> Open in Safari
-                </button>
-              </div>
+              <button
+                type="button"
+                onClick={openInSafari}
+                aria-label="Open this channel in Safari for Picture-in-Picture"
+                title="Picture-in-Picture lives in Safari: one tap hands this channel over and Safari's own PiP takes over"
+              >
+                <PictureInPicture2 /> PiP
+              </button>
             )}
           </div>
         )}
