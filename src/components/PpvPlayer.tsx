@@ -24,7 +24,7 @@ import {
   PPV_IFRAME_SANDBOX,
 } from '../lib/ppvEmbedPolicy';
 import { mergePpvPlaybackSources } from '../lib/ppvProviders';
-import { isHomeScreenApp } from '../lib/liveTvLink';
+import { isHomeScreenApp, safariHandOffUrl } from '../lib/liveTvLink';
 import {
   ppvEmbedToPlaybackSource,
   resolvePpvPlayback,
@@ -336,10 +336,10 @@ export function PpvPlayer({
   const retrySources = () => runLoad(eventRef.current);
 
   /* PPV plays in the provider's own embed, so unlike the live channel player we
-     never trigger PiP ourselves — but the home-screen app can still hand the
-     whole event off to Safari, where the embed's own PiP control works. */
+   never trigger PiP ourselves — but the home-screen app can still hand the
+   whole event off to Safari, where the embed's own PiP control works. A real
+   anchor through the `x-safari-` scheme is the one reliable escape (iOS 17+). */
   const homeScreenApp = isHomeScreenApp();
-  const handOffToSafari = () => window.open(window.location.href, '_blank');
 
   const idleTitle = loading
     ? 'Loading hosted embed'
@@ -445,15 +445,14 @@ export function PpvPlayer({
         </div>
         <div className="ppv-player__actions">
           {homeScreenApp && (
-            <button
-              type="button"
-              onClick={handOffToSafari}
+            <a
+              href={safariHandOffUrl()}
               aria-label="Open this event in Safari for Picture-in-Picture"
               title="Picture-in-Picture lives in Safari: one tap hands this event over and Safari's own PiP takes over"
             >
               <PictureInPicture2 />
               PiP
-            </button>
+            </a>
           )}
           {sources.length > 1 && (
             <button type="button" onClick={nextSource} aria-label="Next PPV source">

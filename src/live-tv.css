@@ -194,7 +194,8 @@ body.live-tv-open .notice{display:none!important}
   display:flex;
   justify-content:flex-end;
 }
-.live-player__pip>button{
+.live-player__pip>button,
+.live-player__pip>a{
   display:flex;
   align-items:center;
   gap:6px;
@@ -206,10 +207,12 @@ body.live-tv-open .notice{display:none!important}
   font-weight:700;
   letter-spacing:.08em;
   text-transform:uppercase;
+  text-decoration:none;
   cursor:pointer;
   color:#fff;
 }
-.live-player__pip>button svg{width:13px}
+.live-player__pip>button svg,
+.live-player__pip>a svg{width:13px}
 
 .live-badge{
   display:flex;

@@ -30,6 +30,19 @@ export function readLiveTvDeepLink(): LiveTvDeepLink {
   }
 }
 
+/*
+ * The undocumented `x-safari-` URL scheme is the one reliable way for a
+ * standalone iOS home-screen web app to hand a URL to the real Safari browser
+ * (iOS 17+, confirmed through current releases). window.open of the app's own
+ * URL is special-cased back into the app window — which is why a scripted
+ * hand-off simply reloads it. The result is meant to be rendered as a real
+ * anchor href, so every tap is a fresh user gesture: iOS can block a scripted
+ * second attempt after a user declines its confirm prompt once.
+ */
+export function safariHandOffUrl(): string {
+  return typeof window === 'undefined' ? '' : `x-safari-${window.location.href}`;
+}
+
 export function writeLiveTvLink({
   open,
   channelId,

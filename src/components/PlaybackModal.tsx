@@ -26,7 +26,7 @@ import type { TitleContext, TmdbClient } from '../lib/tmdb';
 import { EpisodeBrowser } from './EpisodeBrowser';
 import '../playback.css';
 import { site } from '../config/site';
-import { isHomeScreenApp } from '../lib/liveTvLink';
+import { isHomeScreenApp, safariHandOffUrl } from '../lib/liveTvLink';
 
 interface PlaybackModalProps {
   item: MediaItem;
@@ -341,14 +341,11 @@ export function PlaybackModal({
   };
 
   const homeScreenApp = isHomeScreenApp();
-  const handOffToSafari = () => {
-    /* One tap in the home-screen app: the URL already carries this title,
-       season and episode (?watch=...), so Safari lands on the same playback
-       and its own PiP takes over. The position is flushed first so the
-       hand-off resumes where the viewer left off. */
-    record(true);
-    window.open(window.location.href, '_blank');
-  };
+  /* A real anchor through the `x-safari-` scheme — the one reliable way for a
+     standalone iOS web app to hand a URL to real Safari (iOS 17+). The URL
+     already carries this title, season and episode (?watch=...), so Safari
+     lands on the same playback; the position is flushed on tap so Safari
+     resumes where the viewer left off. */
 
   /* Say it, then get out of the way. Clearing the notice does not touch
      resumeAt, so the playback offset itself is unaffected. */
@@ -572,16 +569,16 @@ export function PlaybackModal({
             {serverOpen && <div className="server-picker__menu" role="menu">{compatibleServers.map((server) => <button type="button" role="menuitem" key={server.id} className={server.id === serverId ? 'active' : ''} onClick={() => selectServer(server.id)}><span><strong>{server.label}</strong><small>{server.description}</small></span>{server.id === serverId && <Check />}</button>)}</div>}
           </div>}
           {homeScreenApp && playbackUrl && (
-            <button
-              type="button"
+            <a
               className="playback-retry"
+              href={safariHandOffUrl()}
               aria-label="Open this title in Safari for Picture-in-Picture"
               title="Picture-in-Picture lives in Safari: one tap hands this title over and Safari's own PiP takes over"
-              onClick={handOffToSafari}
+              onClick={() => record(true)}
             >
               <PictureInPicture2 />
               <span>PiP</span>
-            </button>
+            </a>
           )}
           <button type="button" className="playback-retry" aria-label="Retry player" onClick={retry}><RotateCw /><span>Retry</span></button>
           <button ref={closeButton} type="button" aria-label="Close player" onClick={onClose}><X /></button>

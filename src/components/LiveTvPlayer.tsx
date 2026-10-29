@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { AlertTriangle, LoaderCircle, PictureInPicture2, Radio, RotateCw, SkipForward, Play } from 'lucide-react';
 import type { LiveChannel } from '../lib/iptvOrg';
-import { isHomeScreenApp } from '../lib/liveTvLink';
+import { isHomeScreenApp, safariHandOffUrl } from '../lib/liveTvLink';
 
 const HLS_MODULE_URL = 'https://cdn.jsdelivr.net/npm/hls.js@1.6.13/+esm';
 
@@ -265,12 +265,6 @@ export function LiveTvPlayer({ channel }: LiveTvPlayerProps) {
     }
   };
 
-  const openInSafari = () => {
-    /* One tap in the home-screen app: the stage's deep link (?live=1&channel=<id>)
-       rides along, so Safari lands on the same channel with its own PiP ready. */
-    window.open(window.location.href, '_blank');
-  };
-
   const startFromTap = () => {
     const element = video.current;
     if (!element) return;
@@ -332,14 +326,13 @@ export function LiveTvPlayer({ channel }: LiveTvPlayerProps) {
                 <PictureInPicture2 /> {pipActive ? 'Exit PiP' : 'PiP'}
               </button>
             ) : (
-              <button
-                type="button"
-                onClick={openInSafari}
+              <a
+                href={safariHandOffUrl()}
                 aria-label="Open this channel in Safari for Picture-in-Picture"
                 title="Picture-in-Picture lives in Safari: one tap hands this channel over and Safari's own PiP takes over"
               >
                 <PictureInPicture2 /> PiP
-              </button>
+              </a>
             )}
           </div>
         )}
