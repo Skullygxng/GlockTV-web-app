@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { AlertTriangle, LoaderCircle, Radio, RotateCw, SkipForward, Play } from 'lucide-react';
+import { AlertTriangle, ExternalLink, LoaderCircle, PictureInPicture2, Radio, RotateCw, SkipForward, Play } from 'lucide-react';
 import type { LiveChannel } from '../lib/iptvOrg';
 
 const HLS_MODULE_URL = 'https://cdn.jsdelivr.net/npm/hls.js@1.6.13/+esm';
@@ -32,6 +32,32 @@ function isAutoplayBlocked(error: unknown): boolean {
   );
 }
 
+/* Safari only exposes Picture-in-Picture through the prefixed presentation-mode
+ * API, and it gates the feature off entirely inside a home-screen web app
+ * (WebKit bug 303885): document.pictureInPictureEnabled still reports true
+ * there, but webkitSupportsPresentationMode('picture-in-picture') returns
+ * false. That prefixed probe is the one honest signal, so the PiP button below
+ * checks it first — the control hides itself in the standalone container and
+ * comes back on its own if Apple ever lifts the restriction. Everywhere else
+ * the standard API decides. */
+type PresentationModeVideo = HTMLVideoElement & {
+  webkitPresentationMode?: string;
+  webkitSupportsPresentationMode?: (mode: string) => boolean;
+  webkitSetPresentationMode?: (mode: string) => void;
+};
+
+function isHomeScreenApp(): boolean {
+  return (navigator as Navigator & { standalone?: boolean }).standalone === true;
+}
+
+function supportsPictureInPicture(element: HTMLVideoElement): boolean {
+  const probe = element as PresentationModeVideo;
+  if (typeof probe.webkitSupportsPresentationMode === 'function') {
+    return probe.webkitSupportsPresentationMode('picture-in-picture') === true;
+  }
+  return typeof document !== 'undefined' && document.pictureInPictureEnabled === true;
+}
+
 export function LiveTvPlayer({ channel }: LiveTvPlayerProps) {
   const video = useRef<HTMLVideoElement>(null);
   const [streamIndex, setStreamIndex] = useState(0);
@@ -39,6 +65,9 @@ export function LiveTvPlayer({ channel }: LiveTvPlayerProps) {
   const [state, setState] = useState<PlayerState>('loading');
   const [message, setMessage] = useState('Connecting to live stream...');
   const attemptedRef = useRef<Set<number>>(new Set());
+  const [pipSupported, setPipSupported] = useState(false);
+  const [pipActive, setPipActive] = useState(false);
+  const [homeScreenApp] = useState(isHomeScreenApp);
 
   const streams = useMemo(() => channel.streams, [channel.streams]);
   const stream = streams[Math.min(streamIndex, Math.max(0, streams.length - 1))];
@@ -50,6 +79,19 @@ export function LiveTvPlayer({ channel }: LiveTvPlayerProps) {
     setState('loading');
     setMessage('Connecting to live stream...');
   }, [channel.id]);
+
+  useEffect(() => {
+    const element = video.current;
+    if (!element) return;
+    const supported = supportsPictureInPicture(element);
+    setPipSupported(supported);
+    if (!supported) return;
+    const onModeChange = () => {
+      setPipActive((element as PresentationModeVideo).webkitPresentationMode === 'picture-in-picture');
+    };
+    element.addEventListener('webkitpresentationmodechanged', onModeChange);
+    return () => element.removeEventListener('webkitpresentationmodechanged', onModeChange);
+  }, []);
 
   useEffect(() => {
     const element = video.current;
@@ -207,6 +249,32 @@ export function LiveTvPlayer({ channel }: LiveTvPlayerProps) {
     setStreamIndex(next);
   };
 
+  const togglePip = () => {
+    const element = video.current;
+    if (!element) return;
+    const probe = element as PresentationModeVideo;
+    try {
+      if (typeof probe.webkitSetPresentationMode === 'function') {
+        probe.webkitSetPresentationMode(probe.webkitPresentationMode === 'picture-in-picture' ? 'inline' : 'picture-in-picture');
+        return;
+      }
+      if (pipActive) {
+        void document.exitPictureInPicture();
+      } else {
+        void element.requestPictureInPicture();
+      }
+    } catch {
+      /* Safari can refuse outside a user gesture; the button stays truthful. */
+    }
+  };
+
+  const openInSafari = () => {
+    /* From the home-screen app this hands the address to Safari, where PiP
+       actually works. It cannot carry the channel across, since Live TV is an
+       overlay with no URL state. */
+    window.open(window.location.href, '_blank');
+  };
+
   const startFromTap = () => {
     const element = video.current;
     if (!element) return;
@@ -261,6 +329,22 @@ export function LiveTvPlayer({ channel }: LiveTvPlayerProps) {
             {channel.metadata.length ? ` · ${channel.metadata.join(', ')}` : ''}
           </p>
         </div>
+        {(pipSupported || homeScreenApp) && (
+          <div className="live-player__pip">
+            {pipSupported ? (
+              <button type="button" onClick={togglePip} aria-label={pipActive ? 'Exit picture-in-picture' : 'Play in picture-in-picture'}>
+                <PictureInPicture2 /> {pipActive ? 'Exit PiP' : 'PiP'}
+              </button>
+            ) : (
+              <div className="live-player__pip-note" role="note">
+                <small>Picture-in-Picture works in Safari only — iOS blocks it inside a home-screen app.</small>
+                <button type="button" onClick={openInSafari}>
+                  <ExternalLink /> Open in Safari
+                </button>
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </section>
   );

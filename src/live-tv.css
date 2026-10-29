@@ -172,6 +172,7 @@ body.live-tv-open .notice{display:none!important}
 
 .live-player__meta{
   display:flex;
+  flex-wrap:wrap;
   align-items:center;
   gap:12px;
   padding:14px 16px;
@@ -183,6 +184,40 @@ body.live-tv-open .notice{display:none!important}
   text-transform:uppercase;
 }
 .live-player__meta p{margin:0;color:#88828e;font-size:9px}
+
+/* The Live TV player's own Picture-in-Picture control. Safari exposes PiP only
+   through the prefixed presentation-mode API, so the button probes that instead
+   of the standard API — which reports "enabled" inside a home-screen web app
+   where PiP is actually gated off (WebKit bug 303885). */
+.live-player__pip{
+  margin-left:auto;
+  display:flex;
+  justify-content:flex-end;
+}
+.live-player__pip>button{
+  display:flex;
+  align-items:center;
+  gap:6px;
+  border:1px solid #6321a0;
+  background:#7b16ef;
+  border-radius:7px;
+  padding:9px 12px;
+  font-size:9px;
+  font-weight:700;
+  letter-spacing:.08em;
+  text-transform:uppercase;
+  cursor:pointer;
+  color:#fff;
+}
+.live-player__pip>button svg{width:13px}
+.live-player__pip-note{
+  display:grid;
+  gap:6px;
+  justify-items:end;
+  max-width:250px;
+  text-align:right;
+}
+.live-player__pip-note small{color:#8a8492;font-size:8px;line-height:1.5}
 
 .live-badge{
   display:flex;
