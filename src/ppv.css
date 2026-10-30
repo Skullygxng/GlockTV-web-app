@@ -32,7 +32,8 @@
   display:flex;
   gap:8px;
 }
-.ppv-player__actions button{
+.ppv-player__actions button,
+.ppv-player__actions a{
   border:1px solid #3a2f48;
   background:#15131a;
   color:#d7d0e0;
@@ -42,9 +43,11 @@
   align-items:center;
   gap:6px;
   font-size:8px;
+  text-decoration:none;
   cursor:pointer;
 }
-.ppv-player__actions button svg{width:13px}
+.ppv-player__actions button svg,
+.ppv-player__actions a svg{width:13px}
 @media(max-width:900px){
   .live-tv-tabs{margin:0 14px 10px;flex:0 0 auto}
 }

@@ -77,7 +77,15 @@ there too.
   manifest generated at build time from `src/config/siteConfig.ts`, so a
   home-screen install carries the deployment's own name and icon. The in-app
   install prompt (`src/components/AddToHomeScreen.tsx`) teaches the iOS share
-  sheet and raises the Chromium prompt where one exists.
+  sheet and raises the Chromium prompt where one exists. Picture-in-Picture
+  is Safari-only on iOS: inside a home-screen install WebKit gates it off
+  (WebKit bug 303885), so the players show a one-tap PiP link there that hands
+  the stream to Safari instead — via iOS's `x-safari-` URL scheme, the one
+  reliable escape from a standalone web app (iOS 17+). Live channels deep-link
+  (`?live=1&channel=<id>`), PPV events (`?live=1&ppv=<id>`) and movies/shows
+  (`?watch=movie|tv&title=<tmdb id>` with optional season/episode), so Safari
+  lands on the same channel, event or title that was playing, ready for
+  Safari's own PiP.
 - **PPV.** Streams come from StreamFree (`src/lib/ppvStreamFree.ts`) and the
   fight-card schedule from TheSportsDB. Every embed host is allowlisted in
   `src/lib/ppvEmbedPolicy.ts`; adding a provider means adding its embed origin

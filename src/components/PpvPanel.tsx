@@ -19,6 +19,7 @@ import {
   type PpvCatalogDiagnostics,
 } from '../lib/ppvDiagnostics';
 import { safePpvPosterUrl } from '../lib/ppvPosterPolicy';
+import { writeLiveTvLink } from '../lib/liveTvLink';
 import '../ppv.css';
 
 interface PpvPanelProps {
@@ -31,6 +32,9 @@ interface PpvPanelProps {
   onWatchingChange?: (watching: boolean) => void;
   /* Off by default; enabled per-session with ?ppvdebug=1. */
   debug?: boolean;
+  /* The event a deep link (?live=1&ppv=<id>) asked for. Consumed once the
+     catalog lands, like the channel deep link in LiveTvRoute. */
+  initialEventId?: string;
 }
 
 /* Countdown ticks once a minute; the catalog itself refreshes far less often. */
@@ -72,6 +76,7 @@ function freshStatus(event: PpvEvent, now: number): PpvStatus {
 export function PpvPanel({
   loadCatalog = loadPpvPlatformCatalog,
   onWatchingChange,
+  initialEventId,
   debug,
 }: PpvPanelProps) {
   const [catalog, setCatalog] = useState<PpvCatalog | null>(null);
@@ -86,6 +91,8 @@ export function PpvPanel({
   const debugEnabled = debug ?? isPpvDebugEnabled();
 
   const inFlight = useRef(false);
+  /* The event a deep link asked for, consumed once the catalog lands. */
+  const deepLinkedEventRef = useRef(initialEventId ?? '');
 
   const refresh = useCallback(
     (background = false) => {
@@ -99,9 +106,14 @@ export function PpvPanel({
           setCatalog(result);
           setCatalogDiagnostics(result.diagnostics ?? null);
           setError('');
-          setSelectedId((current) =>
-            result.events.some((event) => event.providerEventId === current) ? current : '',
-          );
+          const wanted = deepLinkedEventRef.current;
+          if (wanted) deepLinkedEventRef.current = '';
+          setSelectedId((current) => {
+            if (wanted) {
+              return result.events.some((event) => event.providerEventId === wanted) ? wanted : current;
+            }
+            return result.events.some((event) => event.providerEventId === current) ? current : '';
+          });
         })
         .catch((reason) => {
           // Keep the last good catalog on screen; a failed refresh must not
@@ -131,6 +143,14 @@ export function PpvPanel({
     const timer = setInterval(() => refresh(true), PPV_CATALOG_REFRESH_MS);
     return () => clearInterval(timer);
   }, [refresh]);
+
+  /* The address carries the selected event so the home-screen app's one-tap
+     PiP hand-off lands in Safari on the same event. Held back while a deep
+     link is still pending, like the channel state in LiveTvRoute. */
+  useEffect(() => {
+    if (deepLinkedEventRef.current) return;
+    writeLiveTvLink({ open: true, channelId: '', ppvEventId: selectedId });
+  }, [selectedId]);
 
   const loadedAt = catalog?.loadedAt;
   useEffect(() => {
