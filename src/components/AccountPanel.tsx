@@ -6,6 +6,8 @@ import { createDefaultBillingService, type BillingService } from '../lib/billing
 import { createDefaultSupportStaffService, type SupportStaffService } from '../lib/supportStaff';
 import type { LegalPage } from './LegalPanel';
 import { authErrorMessage } from '../lib/authErrors';
+import { redeemInvite } from '../lib/invites';
+import { useSiteSettings } from '../lib/siteSettings';
 import { site } from '../config/site';
 
 /*
@@ -73,6 +75,10 @@ export function AccountPanel({
   const [billingBusy, setBillingBusy] = useState(false);
   const [billingError, setBillingError] = useState('');
   const [isStaff, setIsStaff] = useState(false);
+  /* The invite-only toggle lives in the deployment's settings, so the form only
+     asks for a code while the deployment is actually gated. */
+  const { inviteGatingEnabled } = useSiteSettings();
+  const [inviteCode, setInviteCode] = useState('');
 
   const dialog = useDialogBehavior<HTMLElement>({ onClose });
 
@@ -100,8 +106,25 @@ export function AccountPanel({
     }
   };
 
+  /*
+   * While invite gating is on, every guest path that ends in a new email
+   * account — password sign-up, email sign-in link, protecting this guest —
+   * claims an invite first. The database refuses an unclaimed account anyway;
+   * this gives the visitor the friendly error before the round trip.
+   */
+  const ensureInvite = async () => {
+    if (!isGuest || !inviteGatingEnabled) return;
+    if (!inviteCode.trim()) {
+      throw new Error('This site is invite-only right now — enter your invite code first.');
+    }
+    await redeemInvite(inviteCode, email);
+  };
+
   const protectAccount = () => {
-    void run(() => linkEmail(email), 'Check your email to finish protecting this account.');
+    void run(async () => {
+      await ensureInvite();
+      await linkEmail(email);
+    }, 'Check your email to finish protecting this account.');
   };
 
   /*
@@ -117,6 +140,7 @@ export function AccountPanel({
       return;
     }
     void run(async () => {
+      await ensureInvite();
       const result = await signUp(email, password);
       setStatus(result === 'confirm_email'
         ? 'Check your email to confirm the account, then sign in.'
@@ -263,6 +287,17 @@ export function AccountPanel({
               placeholder="you@example.com"
             />
           </label>
+          {isGuest && inviteGatingEnabled && (
+            <label>
+              Invite code
+              <input
+                aria-label="Invite code"
+                value={inviteCode}
+                onChange={(event) => { setInviteCode(event.target.value); setStatus(''); setActionError(''); }}
+                placeholder="From whoever invited you"
+              />
+            </label>
+          )}
           {canUsePassword && (
             <>
               <label>
@@ -336,7 +371,10 @@ export function AccountPanel({
             <button
               type="button"
               disabled={busy || !email.trim()}
-              onClick={() => void run(() => sendSignInLink(email), 'Sign-in link sent. Open it on this device.')}
+              onClick={() => void run(async () => {
+                await ensureInvite();
+                await sendSignInLink(email);
+              }, 'Sign-in link sent. Open it on this device.')}
             >
               <Mail /> Email sign-in link
             </button>

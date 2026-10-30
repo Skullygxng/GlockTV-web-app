@@ -127,3 +127,17 @@
 .support-inbox__toolbar{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:0 0 10px;color:#938fa0;font-size:10px;text-transform:uppercase;letter-spacing:.06em}
 .support-inbox__toolbar button{display:inline-flex;align-items:center;gap:6px;min-height:30px;padding:0 11px;border:1px solid #342d3a;border-radius:999px;background:#151218;color:#cfc6d8;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.04em}
 .support-inbox__toolbar svg{width:13px;height:13px}
+
+/* The admin dashboard's invite gating: a plain checkbox row, and the issued
+   codes listed like staff with copy and retire actions. */
+.admin-check{display:grid;gap:6px}
+.admin-check input{width:auto}
+.admin-check span{
+  display:block;color:#9a93a2;font-size:11px;line-height:1.55;font-weight:400;
+  letter-spacing:0;text-transform:none;
+}
+.invite-code{
+  font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
+  letter-spacing:.12em;font-size:13px;
+}
+.admin-invite-actions{display:flex;gap:6px}

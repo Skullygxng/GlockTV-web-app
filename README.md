@@ -86,6 +86,12 @@ there too.
   (`?watch=movie|tv&title=<tmdb id>` with optional season/episode), so Safari
   lands on the same channel, event or title that was playing, ready for
   Safari's own PiP.
+- **Invite gating.** The admin dashboard can turn sign-ups invite-only: staff
+  issue labelled codes (single- or limited-use, optional expiry) from the same
+  panel, and the database refuses new email accounts that have no claim while
+  the toggle is on (triggers on auth.users, so it holds even against a
+  hand-crafted API call). Guests can always browse and watch without an
+  account. Needs the backend migration applied first.
 - **PPV.** Streams come from StreamFree (`src/lib/ppvStreamFree.ts`) and the
   fight-card schedule from TheSportsDB. Every embed host is allowlisted in
   `src/lib/ppvEmbedPolicy.ts`; adding a provider means adding its embed origin

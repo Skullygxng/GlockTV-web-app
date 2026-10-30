@@ -46,12 +46,14 @@ export function defaultSiteSettings(): SiteSettings {
     accentColor2: '#9f37ff',
     logoUrl: '',
     ads: { scriptUrl: '', zones: {}, maxPerSession: null },
+    inviteGatingEnabled: false,
   };
 }
 
 interface SettingsRow {
   site_name?: unknown; tagline?: unknown; accent_color?: unknown; accent_color_2?: unknown;
   logo_url?: unknown; ads_script_url?: unknown; ads_zones?: unknown; ads_max_per_session?: unknown;
+  invite_gating_enabled?: unknown;
 }
 
 function textOr(value: unknown, max: number, fallback: string): string {
@@ -96,6 +98,7 @@ export function rowToSiteSettings(
         ? Math.trunc(max)
         : null,
     },
+    inviteGatingEnabled: row.invite_gating_enabled === true,
   };
 }
 
@@ -208,6 +211,7 @@ export async function saveSiteSettings(next: SiteSettings): Promise<SiteSettings
     ads_script_url: next.ads.scriptUrl || null,
     ads_zones: next.ads.zones,
     ads_max_per_session: next.ads.maxPerSession,
+    invite_gating_enabled: next.inviteGatingEnabled,
     updated_at: new Date().toISOString(),
     updated_by: data.session.user.id,
   }, { onConflict: 'id' });

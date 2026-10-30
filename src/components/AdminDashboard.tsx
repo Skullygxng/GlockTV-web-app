@@ -1,8 +1,9 @@
 import { type FormEvent, useCallback, useEffect, useState } from 'react';
-import { LoaderCircle, Palette, Palette as PaletteIcon, Save, ShieldCheck, Trash2, UserPlus, X } from 'lucide-react';
+import { Copy, LoaderCircle, Palette, Palette as PaletteIcon, Save, ShieldCheck, Ticket, Trash2, UserPlus, X } from 'lucide-react';
 import { useDialogBehavior } from '../hooks/useDialogBehavior';
 import { AD_PLACEMENTS, type AdPlacementId } from '../lib/ads';
 import { defaultSiteSettings, loadSiteSettings, saveSiteSettings, type SiteSettings } from '../lib/siteSettings';
+import { createInvites, disableInvite, listInvites, type InviteRow } from '../lib/invites';
 import { getSupabaseClient } from '../lib/supabaseClient';
 import { site } from '../config/site';
 
@@ -45,6 +46,13 @@ export function AdminDashboard({ onClose }: { onClose: () => void }) {
   const [teamBusy, setTeamBusy] = useState(false);
   const [teamNote, setTeamError] = useState('');
 
+  const [invites, setInvites] = useState<InviteRow[]>([]);
+  const [inviteCount, setInviteCount] = useState(5);
+  const [inviteUses, setInviteUses] = useState(1);
+  const [inviteDays, setInviteDays] = useState('');
+  const [invitesBusy, setInvitesBusy] = useState(false);
+  const [invitesNote, setInvitesNote] = useState('');
+
   const client = getSupabaseClient();
 
   const loadStaff = useCallback(async () => {
@@ -62,6 +70,16 @@ export function AdminDashboard({ onClose }: { onClose: () => void }) {
     }
   }, [client]);
 
+  const loadInvites = useCallback(async () => {
+    if (!client) return;
+    try {
+      setInvites(await listInvites(client));
+    } catch {
+      /* The function refuses non-admins; the panel simply shows none. */
+      setInvites([]);
+    }
+  }, [client]);
+
   useEffect(() => {
     let active = true;
     void loadSiteSettings().then((next) => {
@@ -70,8 +88,9 @@ export function AdminDashboard({ onClose }: { onClose: () => void }) {
       setLoading(false);
     });
     void loadStaff();
+    void loadInvites();
     return () => { active = false; };
-  }, [loadStaff]);
+  }, [loadStaff, loadInvites]);
 
   const update = (patch: Partial<SiteSettings>) => { setSettings((current) => ({ ...current, ...patch })); setStatus(''); };
 
@@ -121,6 +140,41 @@ export function AdminDashboard({ onClose }: { onClose: () => void }) {
       setTeamError(reason instanceof Error ? reason.message : 'That did not work.');
     } finally {
       setTeamBusy(false);
+    }
+  };
+
+  /* Issues codes in a batch, then refreshes the list so the panel shows them
+     immediately — the codes are only visible here once, so the note repeats
+     them for copying before the browser is closed. */
+  const issueInvites = async () => {
+    if (!client || invitesBusy) return;
+    setInvitesBusy(true); setInvitesNote('');
+    try {
+      const codes = await createInvites(client, {
+        count: inviteCount,
+        maxUses: inviteUses,
+        expiresInDays: inviteDays ? Number(inviteDays) : null,
+      });
+      await loadInvites();
+      setInvitesNote(`Issued ${codes.length} code${codes.length === 1 ? '' : 's'} — copy them now: ${codes.join(', ')}`);
+    } catch (reason) {
+      setInvitesNote(reason instanceof Error ? reason.message : 'That did not work.');
+    } finally {
+      setInvitesBusy(false);
+    }
+  };
+
+  const retireInvite = async (code: string) => {
+    if (!client || invitesBusy) return;
+    setInvitesBusy(true); setInvitesNote('');
+    try {
+      await disableInvite(client, code);
+      await loadInvites();
+      setInvitesNote('That code is retired — nobody can use it now.');
+    } catch (reason) {
+      setInvitesNote(reason instanceof Error ? reason.message : 'That did not work.');
+    } finally {
+      setInvitesBusy(false);
     }
   };
 
@@ -256,6 +310,23 @@ export function AdminDashboard({ onClose }: { onClose: () => void }) {
                 </label>
               </fieldset>
 
+              <fieldset>
+                <legend><Ticket /> Invite-only sign-ups</legend>
+                <label className="admin-check">
+                  <input
+                    type="checkbox"
+                    aria-label="Invite-only sign-ups"
+                    checked={settings.inviteGatingEnabled}
+                    onChange={(event) => update({ inviteGatingEnabled: event.target.checked })}
+                  />
+                  <span>
+                    New accounts need an invite code you issue here. Guests can still browse and watch
+                    without an account, and existing accounts are never touched. Turn this on after your
+                    own account exists, and issue codes for anyone you want to let in — including staff.
+                  </span>
+                </label>
+              </fieldset>
+
               <button type="submit" className="admin-save" disabled={busy}>
                 {busy ? <LoaderCircle className="spin" /> : <Save />} Save changes
               </button>
@@ -309,6 +380,90 @@ export function AdminDashboard({ onClose }: { onClose: () => void }) {
                 </label>
                 <button type="submit" disabled={teamBusy || !staffEmail.trim()}>
                   {teamBusy ? <LoaderCircle className="spin" /> : <UserPlus />} Add
+                </button>
+              </form>
+            </section>
+
+            <section className="admin-team" aria-label="Invite codes">
+              <h3><Ticket /> Invite codes</h3>
+              {invitesNote && <p className="support-panel__note" role="status">{invitesNote}</p>}
+
+              <ul>
+                {invites.map((invite) => (
+                  <li key={invite.code}>
+                    <span>
+                      <strong className="invite-code">{invite.code}</strong>
+                      <small>
+                        {invite.useCount}/{invite.maxUses} claimed
+                        {invite.expiresAt ? ` · expires ${new Date(invite.expiresAt).toLocaleDateString()}` : ''}
+                        {invite.disabled ? ' · retired' : ''}
+                      </small>
+                    </span>
+                    <div className="admin-invite-actions">
+                      <button
+                        type="button"
+                        aria-label={`Copy invite code ${invite.code}`}
+                        onClick={() => {
+                          void navigator.clipboard.writeText(invite.code).then(
+                            () => setInvitesNote('Copied.'),
+                            () => setInvitesNote(`Copy it by hand: ${invite.code}`),
+                          );
+                        }}
+                      >
+                        <Copy />
+                      </button>
+                      {!invite.disabled && (
+                        <button
+                          type="button"
+                          aria-label={`Retire ${invite.code}`}
+                          disabled={invitesBusy}
+                          onClick={() => void retireInvite(invite.code)}
+                        >
+                          <Trash2 />
+                        </button>
+                      )}
+                    </div>
+                  </li>
+                ))}
+                {!invites.length && <li><span><small>No invite codes yet. Issue some, then turn invite-only on.</small></span></li>}
+              </ul>
+
+              <form className="admin-team__add" onSubmit={(event) => { event.preventDefault(); void issueInvites(); }}>
+                <label>
+                  How many
+                  <input
+                    aria-label="How many invite codes"
+                    type="number"
+                    min={1}
+                    max={50}
+                    value={inviteCount}
+                    onChange={(event) => setInviteCount(Math.max(1, Math.min(50, Number(event.target.value) || 1)))}
+                  />
+                </label>
+                <label>
+                  Uses per code
+                  <input
+                    aria-label="Uses per invite code"
+                    type="number"
+                    min={1}
+                    max={1000}
+                    value={inviteUses}
+                    onChange={(event) => setInviteUses(Math.max(1, Math.min(1000, Number(event.target.value) || 1)))}
+                  />
+                </label>
+                <label>
+                  Expires in days
+                  <input
+                    aria-label="Invite expiry in days"
+                    type="number"
+                    min={1}
+                    value={inviteDays}
+                    onChange={(event) => setInviteDays(event.target.value)}
+                    placeholder="Blank = never"
+                  />
+                </label>
+                <button type="submit" disabled={invitesBusy}>
+                  {invitesBusy ? <LoaderCircle className="spin" /> : <Ticket />} Issue codes
                 </button>
               </form>
             </section>
