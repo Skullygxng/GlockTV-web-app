@@ -26,6 +26,7 @@ export interface SiteSettings {
   accentColor: string;
   accentColor2: string;
   logoUrl: string;
+  inviteGatingEnabled: boolean;
   ads: {
     scriptUrl: string;
     zones: Partial<Record<AdPlacementId, string>>;
